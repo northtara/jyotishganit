@@ -5,7 +5,7 @@ Provides functions to calculate complete birth charts with JSON-LD output.
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from jyotishganit.core.astronomical import calculate_all_positions
 from jyotishganit.core.models import Person, VedicBirthChart, RasiChart
@@ -25,8 +25,8 @@ def calculate_birth_chart(
     latitude: float,
     longitude: float,
     timezone_offset: float = 0.0,
-    location_name: str = None,
-    name: str = None
+    location_name: Optional[str] = None,
+    name: Optional[str] = None
 ) -> VedicBirthChart:
     """
     Calculate complete Vedic birth chart with all components.

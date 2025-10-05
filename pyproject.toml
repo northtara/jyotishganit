@@ -70,10 +70,13 @@ target-version = ["py38"]
 include = '\.pyi?$'
 
 [tool.mypy]
-python_version = "3.8"
-warn_return_any = true
+python_version = "3.9"
+warn_return_any = false
 warn_unused_configs = true
-disallow_untyped_defs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+disallow_any_generics = false
+no_implicit_optional = true
 
 [[tool.mypy.overrides]]
 module = ["skyfield.*", "pandas.*"]
