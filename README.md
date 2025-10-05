@@ -26,7 +26,7 @@ pip install jyotishganit
 
 ```python
 from datetime import datetime
-from jyotishganit import calculate_birth_chart
+from jyotishganit import calculate_birth_chart, get_birth_chart_json_string
 
 # Generate a complete Vedic birth chart
 chart = calculate_birth_chart(
@@ -43,10 +43,10 @@ print(f"Moon Sign: {chart.d1_chart.planets[1].sign}")  # Moon is index 1
 print(f"Nakshatra: {chart.panchanga.nakshatra}")
 
 # Save the entire chart as JSON
-with open("outputs/birth_chart.json", "w") as json_file:
-    json_file.write(chart.to_json())
+with open("birth_chart.json", "w") as json_file:
+    json_file.write(get_birth_chart_json_string(chart))
 
-print("Birth chart saved to outputs/birth_chart.json")
+print("Birth chart saved to birth_chart.json")
 ```
 
 Expected output:
@@ -54,7 +54,7 @@ Expected output:
 Ascendant: Leo
 Moon Sign: Aquarius
 Nakshatra: Dhanishta
-Birth chart saved to outputs/birth_chart.json
+Birth chart saved to birth_chart.json
 ```
 
 ## Comprehensive Astrological Components
