@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2025-10-08
+
+### Fixed
+- Fixed divisional chart ascendant d1HousePlacement calculation (was always showing 1, now correctly calculated)
+- Fixed type hints: Added Optional import for proper type annotations
+- Relaxed mypy configuration for better compatibility
+
+### Added
+- Professional badges to README (PyPI version, Python version, License, Downloads, GitHub stars)
+
+### Removed
+- Unnecessary cross-platform tests (reduced from 112 to 109 tests, maintained 89% coverage)
+
 ## [0.1.1] - 2025-10-05
 
 ### Changed
