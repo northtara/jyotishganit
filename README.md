@@ -2,6 +2,11 @@
 
 # jyotishganit
 
+[![PyPI version](https://badge.fury.io/py/jyotishganit.svg)](https://badge.fury.io/py/jyotishganit)
+[![Python Version](https://img.shields.io/pypi/pyversions/jyotishganit.svg)](https://pypi.org/project/jyotishganit/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://pepy.tech/badge/jyotishganit)](https://pepy.tech/project/jyotishganit)
+[![GitHub](https://img.shields.io/github/stars/northtara/jyotishganit?style=social)](https://github.com/northtara/jyotishganit)
 
 **Professional grade Vedic Astrology Computation Library for Python**
 
