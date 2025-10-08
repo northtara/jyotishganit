@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-      fail-fast: false  # Continue running other jobs even if one fails
+      fail-fast: false
 
     steps:
     - uses: actions/checkout@v4
@@ -23,15 +23,10 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      uses: nick-fields/retry-action@v3
-      with:
-        timeout_minutes: 10
-        max_attempts: 3
-        retry_wait_seconds: 30
-        command: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
 
     - name: Lint with flake8
       run: |
@@ -41,13 +36,8 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
     - name: Test with pytest
-      uses: nick-fields/retry-action@v3
-      with:
-        timeout_minutes: 15
-        max_attempts: 2
-        retry_wait_seconds: 10
-        command: |
-          pytest tests/ --cov=jyotishganit --cov-report=xml
+      run: |
+        pytest tests/ --cov=jyotishganit --cov-report=xml
 
     - name: Validate package structure
       run: |
@@ -72,14 +62,9 @@ jobs:
         python-version: "3.11"
 
     - name: Install build dependencies
-      uses: nick-fields/retry-action@v3
-      with:
-        timeout_minutes: 10
-        max_attempts: 3
-        retry_wait_seconds: 30
-        command: |
-          python -m pip install --upgrade pip
-          pip install build twine
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
 
     - name: Build package
       run: python -m build
