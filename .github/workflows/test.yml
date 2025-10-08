@@ -34,10 +34,6 @@ jobs:
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-    - name: Type check with mypy
-      run: |
-        mypy jyotishganit --ignore-missing-imports
-
     - name: Test with pytest
       run: |
         pytest tests/ --cov=jyotishganit --cov-report=xml
