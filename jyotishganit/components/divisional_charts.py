@@ -403,9 +403,14 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
     div_asc_sign = compute_divisional_position_for_type(
         d1_chart.houses[0].sign, d1_chart.houses[0].sign_degrees, chart_type
     )
+    
+    # Calculate which D1 house this divisional ascendant sign falls in
+    div_asc_sign_num = signnum(div_asc_sign)
+    d1_house_for_div_asc = ((div_asc_sign_num - asc_sign_d1_num) % 12) + 1
+    
     div_asc = DivisionalAscendant(
         sign=div_asc_sign,
-        d1_house_placement=1  # Ascendant is always in house 1
+        d1_house_placement=d1_house_for_div_asc
     )
 
     # Create houses
