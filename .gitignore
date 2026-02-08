@@ -130,4 +130,5 @@ Thumbs.db
 # Project specific
 *.bsp
 *.dat
+*.dat.download
 *.log
