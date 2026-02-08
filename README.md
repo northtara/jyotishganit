@@ -342,19 +342,23 @@ planet.aspected_by     # List[str]: Planets aspecting this one
 We welcome contributions from the Vedic astrology and Python communities!
 
 ### Development Setup
+
+This project uses [uv](https://docs.astral.sh/uv/) for fast, reproducible dependency management. With [direnv](https://direnv.net/) and `.envrc`, the venv activates automatically when you `cd` into the repo.
+
 ```bash
 git clone https://github.com/northtara/jyotishganit.git
 cd jyotishganit
-pip install -r requirements-dev.txt
-pip install -e .
+uv lock                    # generate uv.lock (commit for reproducible installs)
+uv sync --all-extras       # creates .venv and installs deps (run once)
+direnv allow               # if using direnv: auto-activate .venv on cd
 ```
 
 ### Running Tests
 ```bash
-pytest tests/                    # All tests
-python validate_package.py      # Package validation
-black jyotishganit/             # Code formatting
-mypy jyotishganit/              # Type checking  
+uv run pytest tests/       # All tests
+uv run ruff check .        # Lint
+uv run ruff format --check .  # Format check
+uv run mypy jyotishganit/  # Type checking
 ```
 
 ### Contribution Guidelines
@@ -381,7 +385,7 @@ mypy jyotishganit/              # Type checking
 | **Testing** | ✅ Comprehensive Test Suite |  
 | **Documentation** | ✅ Complete API Documentation |
 | **Cross-Platform** | ✅ Windows, macOS, Linux |
-| **Python Versions** | ✅ 3.8, 3.9, 3.10, 3.11, 3.12 |
+| **Python Versions** | ✅ 3.10, 3.11, 3.12, 3.13 |
 | **CI/CD** | ✅ GitHub Actions |
 | **Package Quality** | ✅ PyPI Best Practices |
 

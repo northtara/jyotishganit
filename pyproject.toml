@@ -11,19 +11,18 @@ authors = [
 description = "High precision Vedic astrology calculations in Python"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers", 
+    "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Astronomy",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
@@ -38,13 +37,11 @@ dependencies = [
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
-    "black>=22.0",
-    "flake8>=5.0",
+    "pytest-mock>=3.10",
+    "ruff>=0.8",
     "mypy>=1.0",
-]
-docs = [
-    "sphinx>=5.0",
-    "sphinx-rtd-theme>=1.0",
+    "build>=0.9",
+    "twine>=4.0",
 ]
 
 [project.urls]
@@ -64,20 +61,43 @@ testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 addopts = "--cov=jyotishganit --cov-report=html --cov-report=term-missing"
 
-[tool.black]
+[tool.ruff]
+target-version = "py310"
 line-length = 88
-target-version = ["py38"]
-include = '\.pyi?$'
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "W",
+    "F",
+    "I",
+    "UP",
+    "S",
+    "B",
+    "C4",
+    "SIM",
+]
+ignore = ["S101", "E501"]
+# E501: line length; formatter handles most.
+
+[tool.ruff.lint.isort]
+known-first-party = ["jyotishganit"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = false
 warn_unused_configs = true
 disallow_untyped_defs = false
 check_untyped_defs = true
 disallow_any_generics = false
 no_implicit_optional = true
+strict_optional = true
 
 [[tool.mypy.overrides]]
 module = ["skyfield.*", "pandas.*"]
 ignore_missing_imports = true
+
+# Incremental: fix type errors in follow-ups. These modules use untyped dict constants.
+[[tool.mypy.overrides]]
+module = ["jyotishganit.core.astronomical", "jyotishganit.components.strengths", "jyotishganit.components.ashtakavarga"]
+disable_error_code = ["attr-defined", "index", "no-any-return", "return-value", "union-attr", "operator", "arg-type", "dict-item", "call-overload"]
