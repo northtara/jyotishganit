@@ -7,10 +7,9 @@ to verify that the jyotishganit implementation produces identical results.
 Run as: PYTHONPATH=/Users/sid/NorthTaraResearch python tests/test_manual_calc_verification.py
 """
 
-import sys
 import os
+import sys
 from datetime import datetime
-import math
 
 # Fix import paths dynamically
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,9 +19,15 @@ sys.path.insert(0, parent_dir)  # Add jyotishganit to path
 sys.path.insert(0, parent_parent_dir)  # Add NorthTaraResearch to path
 
 try:
+    from jyotishganit.components.ashtakavarga import (
+        BENEFIC_HOUSES,
+        calculate_bhinna_ashtakavarga,
+    )
+    from jyotishganit.core.constants import (
+        EXALTATION_DEGREES,
+        ZODIAC_SIGNS,
+    )
     from jyotishganit.main import calculate_birth_chart
-    from jyotishganit.core.constants import ZODIAC_SIGNS, EXALTATION_DEGREES, DIGBALA_STRONG_HOUSES
-    from jyotishganit.components.ashtakavarga import calculate_bhinna_ashtakavarga, BENEFIC_HOUSES
 except ImportError as e:
     print(f"Import error: {e}")
     print("Please run from the correct directory or set PYTHONPATH")
@@ -68,8 +73,8 @@ def manual_nat_tabs_calc(birth_hour, sunrise, sunset, planet_name):
 
     # Day planets: Sun, Mars, Jupiter (male/rajasic planets)
     # Night planets: Moon, Venus, Saturn (female/sattwic planets)
-    day_planets = ['Sun', 'Mars', 'Jupiter']
-    night_planets = ['Moon', 'Venus', 'Saturn']
+    day_planets = ["Sun", "Mars", "Jupiter"]
+    night_planets = ["Moon", "Venus", "Saturn"]
 
     if is_day_birth:
         if planet_name in day_planets:
@@ -101,9 +106,9 @@ def run_manual_verification():
     """Run comprehensive manual calculation verification."""
 
     print("🕉️ MANUAL CALCULATION VERIFICATION SCRIPT")
-    print("="*65)
+    print("=" * 65)
     print("Manually replicating jyotishganit strength calculations")
-    print("="*65)
+    print("=" * 65)
 
     # =========================================================================
     # TEST CASE 1: Mars Uchha Bala Manual Calculation
@@ -113,23 +118,29 @@ def run_manual_verification():
     print("-" * 50)
 
     # Get Mars position
-    mars_chart = calculate_birth_chart(datetime(2020, 4, 15, 12, 0, 0), 28.6139, 77.2090, 5.5)
-    mars = next(p for p in mars_chart.d1_chart.planets if p.celestial_body == 'Mars')
+    mars_chart = calculate_birth_chart(
+        datetime(2020, 4, 15, 12, 0, 0), 28.6139, 77.2090, 5.5
+    )
+    mars = next(p for p in mars_chart.d1_chart.planets if p.celestial_body == "Mars")
     mars_pos = (ZODIAC_SIGNS.index(mars.sign) * 30) + mars.sign_degrees
 
     # Manual calculation
-    manual_mars_uchha = manual_uchha_bala_calc(mars_pos, 'Mars')
-    calculated_mars_uchha = mars.shadbala.get('Sthanabala', {}).get('Uchhabala', 0)
+    manual_mars_uchha = manual_uchha_bala_calc(mars_pos, "Mars")
+    calculated_mars_uchha = mars.shadbala.get("Sthanabala", {}).get("Uchhabala", 0)
 
     print(f"Mars Position: {mars.sign} {mars.sign_degrees:.1f}°")
     print(f"Mars Absolute Position: {mars_pos:.2f}°")
-    print(f"Mars Exaltation: 298° (Scorpio 28°)")
-    print(f"Mars Debilitation: 118° (Cancer 28°)")
+    print("Mars Exaltation: 298° (Scorpio 28°)")
+    print("Mars Debilitation: 118° (Cancer 28°)")
     print()
-    print(f"Manual Uchha Bala Calculation:")
-    print(f"  Distance to debilitation: |{mars_pos:.2f} - 118| = {abs(mars_pos - 118):.2f}°")
+    print("Manual Uchha Bala Calculation:")
+    print(
+        f"  Distance to debilitation: |{mars_pos:.2f} - 118| = {abs(mars_pos - 118):.2f}°"
+    )
     print(f"  Shorter arc: {min(abs(mars_pos - 118), 360 - abs(mars_pos - 118)):.2f}°")
-    print(f"  Uchha Bala: {min(abs(mars_pos - 118), 360 - abs(mars_pos - 118)):.2f} / 3 = {manual_mars_uchha:.3f}")
+    print(
+        f"  Uchha Bala: {min(abs(mars_pos - 118), 360 - abs(mars_pos - 118)):.2f} / 3 = {manual_mars_uchha:.3f}"
+    )
     print()
     print(f"Algorithm Result: {calculated_mars_uchha:.3f}")
     print(f"✅ EXACT MATCH: {abs(manual_mars_uchha - calculated_mars_uchha) < 0.001}")
@@ -143,23 +154,29 @@ def run_manual_verification():
     print("-" * 50)
 
     # Get Sun position - Sun's strong house is 5th (midpoint = 105°)
-    sun_chart = calculate_birth_chart(datetime(2020, 7, 15, 12, 0, 0), 28.6139, 77.2090, 5.5)
-    sun = next(p for p in sun_chart.d1_chart.planets if p.celestial_body == 'Sun')
+    sun_chart = calculate_birth_chart(
+        datetime(2020, 7, 15, 12, 0, 0), 28.6139, 77.2090, 5.5
+    )
+    sun = next(p for p in sun_chart.d1_chart.planets if p.celestial_body == "Sun")
     sun_pos = (ZODIAC_SIGNS.index(sun.sign) * 30) + sun.sign_degrees
     sun_strong_point = 105.0  # 5th house midpoint (4*30 + 15)
 
     # Manual calculation
     manual_sun_dig = manual_digbala_calc(sun_pos, sun_strong_point)
-    calculated_sun_dig = sun.shadbala.get('Digbala', 0)
+    calculated_sun_dig = sun.shadbala.get("Digbala", 0)
 
     print(f"Sun Position: {sun.sign} {sun.sign_degrees:.1f}°")
     print(f"Sun Absolute Position: {sun_pos:.1f}°")
-    print(f"Sun Strong House: 5th (= 105°) (Leo midpoint)")
+    print("Sun Strong House: 5th (= 105°) (Leo midpoint)")
     print()
-    print(f"Manual Dig Bala Calculation:")
-    print(f"  Distance to strong point: |{sun_pos:.1f} - 105| = {abs(sun_pos - 105):.1f}°")
+    print("Manual Dig Bala Calculation:")
+    print(
+        f"  Distance to strong point: |{sun_pos:.1f} - 105| = {abs(sun_pos - 105):.1f}°"
+    )
     print(f"  Shorter arc: {min(abs(sun_pos - 105), 360 - abs(sun_pos - 105)):.1f}°")
-    print(f"  Dig Bala: (180 - {min(abs(sun_pos - 105), 360 - abs(sun_pos - 105)):.1f}) / 3 = {manual_sun_dig:.3f}")
+    print(
+        f"  Dig Bala: (180 - {min(abs(sun_pos - 105), 360 - abs(sun_pos - 105)):.1f}) / 3 = {manual_sun_dig:.3f}"
+    )
     print()
     print(f"Algorithm Result: {calculated_sun_dig:.3f}")
     print(f"✅ EXACT MATCH: {abs(manual_sun_dig - calculated_sun_dig) < 0.001}")
@@ -175,15 +192,23 @@ def run_manual_verification():
     from jyotishganit.core.astronomical import get_sunrise_sunset
 
     # Day birth
-    day_birth = calculate_birth_chart(datetime(2020, 5, 15, 12, 0, 0), 28.6139, 77.2090, 5.5)
+    day_birth = calculate_birth_chart(
+        datetime(2020, 5, 15, 12, 0, 0), 28.6139, 77.2090, 5.5
+    )
     day_sunrise, day_sunset = get_sunrise_sunset(day_birth.person)
-    day_sun_nt_formula = manual_nat_tabs_calc(12.0, day_sunrise, day_sunset, 'Sun')
-    day_moon_nt_formula = manual_nat_tabs_calc(12.0, day_sunrise, day_sunset, 'Moon')
+    day_sun_nt_formula = manual_nat_tabs_calc(12.0, day_sunrise, day_sunset, "Sun")
+    day_moon_nt_formula = manual_nat_tabs_calc(12.0, day_sunrise, day_sunset, "Moon")
 
-    day_sun_nt_calc = next(p.shadbala.get('Kaalabala', {}).get('Natonnatabala', 0)
-                          for p in day_birth.d1_chart.planets if p.celestial_body == 'Sun')
-    day_moon_nt_calc = next(p.shadbala.get('Kaalabala', {}).get('Natonnatabala', 0)
-                           for p in day_birth.d1_chart.planets if p.celestial_body == 'Moon')
+    day_sun_nt_calc = next(
+        p.shadbala.get("Kaalabala", {}).get("Natonnatabala", 0)
+        for p in day_birth.d1_chart.planets
+        if p.celestial_body == "Sun"
+    )
+    day_moon_nt_calc = next(
+        p.shadbala.get("Kaalabala", {}).get("Natonnatabala", 0)
+        for p in day_birth.d1_chart.planets
+        if p.celestial_body == "Moon"
+    )
 
     print("DAY BIRTH (Noon) - Expected Results:")
     print(f"  Formula: Sun={day_sun_nt_formula}, Moon={day_moon_nt_formula}")
@@ -193,21 +218,33 @@ def run_manual_verification():
     print()
 
     # Night birth
-    night_birth = calculate_birth_chart(datetime(2020, 5, 15, 0, 0, 0), 28.6139, 77.2090, 5.5)
+    night_birth = calculate_birth_chart(
+        datetime(2020, 5, 15, 0, 0, 0), 28.6139, 77.2090, 5.5
+    )
     night_sunrise, night_sunset = get_sunrise_sunset(night_birth.person)
-    night_sun_nt_formula = manual_nat_tabs_calc(0.0, night_sunrise, night_sunset, 'Sun')
-    night_moon_nt_formula = manual_nat_tabs_calc(0.0, night_sunrise, night_sunset, 'Moon')
+    night_sun_nt_formula = manual_nat_tabs_calc(0.0, night_sunrise, night_sunset, "Sun")
+    night_moon_nt_formula = manual_nat_tabs_calc(
+        0.0, night_sunrise, night_sunset, "Moon"
+    )
 
-    night_sun_nt_calc = next(p.shadbala.get('Kaalabala', {}).get('Natonnatabala', 0)
-                            for p in night_birth.d1_chart.planets if p.celestial_body == 'Sun')
-    night_moon_nt_calc = next(p.shadbala.get('Kaalabala', {}).get('Natonnatabala', 0)
-                             for p in night_birth.d1_chart.planets if p.celestial_body == 'Moon')
+    night_sun_nt_calc = next(
+        p.shadbala.get("Kaalabala", {}).get("Natonnatabala", 0)
+        for p in night_birth.d1_chart.planets
+        if p.celestial_body == "Sun"
+    )
+    night_moon_nt_calc = next(
+        p.shadbala.get("Kaalabala", {}).get("Natonnatabala", 0)
+        for p in night_birth.d1_chart.planets
+        if p.celestial_body == "Moon"
+    )
 
     print("NIGHT BIRTH (Midnight) - Expected Results:")
     print(f"  Formula: Sun={night_sun_nt_formula}, Moon={night_moon_nt_formula}")
     print(f"  Calculated: Sun={night_sun_nt_calc:.1f}, Moon={night_moon_nt_calc:.1f}")
     print()
-    print(f"✅ Night Birth Match: {abs(night_moon_nt_formula - night_moon_nt_calc) < 0.01}")
+    print(
+        f"✅ Night Birth Match: {abs(night_moon_nt_formula - night_moon_nt_calc) < 0.01}"
+    )
     print()
 
     # =========================================================================
@@ -218,9 +255,11 @@ def run_manual_verification():
     print("-" * 50)
 
     # Create full moon condition (Sun and Moon opposite)
-    moon_chart = calculate_birth_chart(datetime(2020, 10, 31, 12, 0, 0), 28.6139, 77.2090, 5.5)
-    sun = next(p for p in moon_chart.d1_chart.planets if p.celestial_body == 'Sun')
-    moon = next(p for p in moon_chart.d1_chart.planets if p.celestial_body == 'Moon')
+    moon_chart = calculate_birth_chart(
+        datetime(2020, 10, 31, 12, 0, 0), 28.6139, 77.2090, 5.5
+    )
+    sun = next(p for p in moon_chart.d1_chart.planets if p.celestial_body == "Sun")
+    moon = next(p for p in moon_chart.d1_chart.planets if p.celestial_body == "Moon")
 
     sun_pos = (ZODIAC_SIGNS.index(sun.sign) * 30) + sun.sign_degrees
     moon_pos = (ZODIAC_SIGNS.index(moon.sign) * 30) + moon.sign_degrees
@@ -230,18 +269,20 @@ def run_manual_verification():
     shorter_distance = min(moon_distance, 360 - moon_distance)
     manual_moon_paksh = manual_pakshabala_calc(sun_pos, moon_pos)
 
-    calculated_moon_paksh = moon.shadbala.get('Kaalabala', {}).get('Pakshabala', 0)
+    calculated_moon_paksh = moon.shadbala.get("Kaalabala", {}).get("Pakshabala", 0)
 
     print(f"Sun Position: {sun.sign} {sun.sign_degrees:.1f}°")
     print(f"Moon Position: {moon.sign} {moon.sign_degrees:.1f}°")
     print()
-    print(f"Manual Paksha Bala Calculation:")
+    print("Manual Paksha Bala Calculation:")
     print(f"  Sun-Moon Distance: {moon_distance:.1f}°")
     print(f"  Shorter Arc: {shorter_distance:.1f}°")
     print(f"  Paksha Bala: {shorter_distance:.1f} / 3 = {manual_moon_paksh:.3f}")
     print()
     print(f"Algorithm Result: {calculated_moon_paksh:.3f}")
-    print(f"✅ Lunar Phase Match: {abs(manual_moon_paksh - calculated_moon_paksh) < 0.001}")
+    print(
+        f"✅ Lunar Phase Match: {abs(manual_moon_paksh - calculated_moon_paksh) < 0.001}"
+    )
     print()
 
     # =========================================================================
@@ -253,12 +294,18 @@ def run_manual_verification():
 
     # Create test with planets in own signs for max bindus
     test_natal = {
-        'Sun': 4, 'Moon': 3, 'Mars': 7, 'Mercury': 2,
-        'Jupiter': 11, 'Venus': 1, 'Saturn': 9, 'Lagna': 0
+        "Sun": 4,
+        "Moon": 3,
+        "Mars": 7,
+        "Mercury": 2,
+        "Jupiter": 11,
+        "Venus": 1,
+        "Saturn": 9,
+        "Lagna": 0,
     }
 
-    planets_to_test = ['Sun', 'Moon', 'Mars', 'Venus']
-    parashara_totals = {'Sun': 48, 'Moon': 49, 'Mars': 39, 'Venus': 52}
+    planets_to_test = ["Sun", "Moon", "Mars", "Venus"]
+    parashara_totals = {"Sun": 48, "Moon": 49, "Mars": 39, "Venus": 52}
 
     print("Planets in own signs (maximum bindu configuration):")
     print("Sun (Leo), Moon (Cancer), Mars (Scorpio), Venus (Taurus), etc.")
@@ -270,7 +317,9 @@ def run_manual_verification():
         expected = parashara_totals[planet]
 
         print(f"{planet} BAV Total: {total_bindus} (Expected: {expected}) ✅")
-        assert total_bindus == expected, f"{planet} BAV total {total_bindus} != {expected}"
+        assert total_bindus == expected, (
+            f"{planet} BAV total {total_bindus} != {expected}"
+        )
 
     print()
 
@@ -279,7 +328,7 @@ def run_manual_verification():
     # =========================================================================
 
     print("🎯 MANUAL CALCULATION VERIFICATION COMPLETE")
-    print("="*65)
+    print("=" * 65)
     print("✅ Uchha Bala: Algorithm matches manual distance-to-debilitation arithmetic")
     print("✅ Dig Bala: Algorithm matches manual directional midpoint calculations")
     print("✅ Nat Tabs: Algorithm matches manual day/night birth time classifications")
@@ -287,8 +336,12 @@ def run_manual_verification():
     print("✅ Ashtakavarga: Algorithm matches classical Parashara total bindus")
     print()
     print("🎯 CONCLUSION: Manual horoscope verification framework established")
-    print("All manual calculations reproduce the same results as the jyotishganit algorithms")
-    print("Manual verification enabled for D charts, planetary strengths, and horoscope calc checking")
+    print(
+        "All manual calculations reproduce the same results as the jyotishganit algorithms"
+    )
+    print(
+        "Manual verification enabled for D charts, planetary strengths, and horoscope calc checking"
+    )
 
 
 if __name__ == "__main__":

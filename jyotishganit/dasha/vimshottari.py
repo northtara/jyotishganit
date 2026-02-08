@@ -5,27 +5,31 @@ Calculates Vimshottari Dasha periods with mahadasha, antardasha, and pratyantard
 This version fixes fundamental errors in constants and calculation formulas.
 """
 
-from datetime import datetime, timedelta
-from typing import Tuple, List, Dict, Any
 from collections import OrderedDict
+from datetime import datetime, timedelta
+from typing import Any
 
-from skyfield.api import load
-
-from jyotishganit.core.astronomical import skyfield_time_from_datetime, calculate_ayanamsa, get_timescale, get_ephemeris
-from jyotishganit.core.constants import (
-    VIMSHOTTARI_DASHA_DURATIONS, VIMSHOTTARI_ADHIPATI_LIST,
-    HUMAN_LIFE_SPAN_FOR_VIMSHOTTARI, YEAR_DURATION_DAYS, DASHA_LEVEL_NAMES
+from jyotishganit.core.astronomical import (
+    calculate_ayanamsa,
+    get_ephemeris,
+    skyfield_time_from_datetime,
 )
-from jyotishganit.core.models import DashaPeriod, Dashas
+from jyotishganit.core.constants import (
+    HUMAN_LIFE_SPAN_FOR_VIMSHOTTARI,
+    VIMSHOTTARI_ADHIPATI_LIST,
+    VIMSHOTTARI_DASHA_DURATIONS,
+    YEAR_DURATION_DAYS,
+)
+from jyotishganit.core.models import Dashas
 
 
-def _get_moon_nakshatra_at_birth(t, ayanamsa: float) -> Tuple[int, float]:
+def _get_moon_nakshatra_at_birth(t, ayanamsa: float) -> tuple[int, float]:
     """Calculate Moon's nakshatra and position within it at birth."""
     eph = get_ephemeris()
-    pos = eph['earth'].at(t).observe(eph['moon']).apparent()
+    pos = eph["earth"].at(t).observe(eph["moon"]).apparent()
     _, lon, _ = pos.ecliptic_latlon()
     moon_lon_tropical = lon.degrees
-    
+
     moon_lon_sidereal = (moon_lon_tropical - ayanamsa) % 360
 
     nakshatra_span = 360.0 / 27.0
@@ -35,7 +39,9 @@ def _get_moon_nakshatra_at_birth(t, ayanamsa: float) -> Tuple[int, float]:
     return nak_index, remainder_degrees
 
 
-def calculate_dasha_start_date(birth_datetime: datetime, timezone_offset: float, ayanamsa: float) -> Tuple[str, datetime]:
+def calculate_dasha_start_date(
+    birth_datetime: datetime, timezone_offset: float, ayanamsa: float
+) -> tuple[str, datetime]:
     """
     CORRECTED: Calculate the start date and lord of the mahadasa active at birth.
     """
@@ -71,7 +77,7 @@ def _generate_sub_periods(
     parent_start_date: datetime,
     parent_duration_days: float,
     current_level: int,
-    max_depth: int
+    max_depth: int,
 ) -> OrderedDict[str, Any]:
     """
     Generate nested sub-periods with proper naming:
@@ -82,10 +88,7 @@ def _generate_sub_periods(
         return OrderedDict()
 
     # Level name mapping
-    level_names = {
-        2: "antardashas",
-        3: "pratyantardashas"
-    }
+    level_names = {2: "antardashas", 3: "pratyantardashas"}
 
     sub_periods = OrderedDict()
     current_sub_period_start = parent_start_date
@@ -95,13 +98,17 @@ def _generate_sub_periods(
 
     for _ in range(len(VIMSHOTTARI_ADHIPATI_LIST)):
         # CORRECT FORMULA: Sub_Period = Parent_Period * (Sub_Lord_Duration / 120)
-        sub_period_duration_days = parent_duration_days * (VIMSHOTTARI_DASHA_DURATIONS[sub_lord] / HUMAN_LIFE_SPAN_FOR_VIMSHOTTARI)
+        sub_period_duration_days = parent_duration_days * (
+            VIMSHOTTARI_DASHA_DURATIONS[sub_lord] / HUMAN_LIFE_SPAN_FOR_VIMSHOTTARI
+        )
 
-        sub_period_end_date = current_sub_period_start + timedelta(days=sub_period_duration_days)
+        sub_period_end_date = current_sub_period_start + timedelta(
+            days=sub_period_duration_days
+        )
 
-        sub_period_data = {
+        sub_period_data: dict[str, Any] = {
             "start": current_sub_period_start,
-            "end": sub_period_end_date
+            "end": sub_period_end_date,
         }
 
         # Generate next level if requested
@@ -112,7 +119,7 @@ def _generate_sub_periods(
                 current_sub_period_start,
                 sub_period_duration_days,
                 current_level + 1,
-                max_depth
+                max_depth,
             )
 
         sub_periods[sub_lord] = sub_period_data
@@ -123,40 +130,42 @@ def _generate_sub_periods(
     return sub_periods
 
 
-def _extract_current_periods(all_periods: Dict[str, Any], current_datetime: datetime) -> Dict[str, Any]:
+def _extract_current_periods(
+    all_periods: dict[str, Any], current_datetime: datetime
+) -> dict[str, Any]:
     """
     Extracts the currently active mahadasha, antardasha, and pratyantardasha
     in the same nested structure as 'all_periods'.
     """
-    current_structure = {"mahadashas": OrderedDict()}
+    current_structure: dict[str, Any] = {"mahadashas": OrderedDict()}
     mahadashas = all_periods.get("mahadashas", {})
 
     for md_lord, md_data in mahadashas.items():
-        if md_data['start'] <= current_datetime < md_data['end']:
+        if md_data["start"] <= current_datetime < md_data["end"]:
             # Found current Mahadasha
             current_md = {
-                "start": md_data['start'],
-                "end": md_data['end'],
-                "antardashas": OrderedDict()
+                "start": md_data["start"],
+                "end": md_data["end"],
+                "antardashas": OrderedDict(),
             }
 
-            antardashas = md_data.get('antardashas', {})
+            antardashas = md_data.get("antardashas", {})
             for ad_lord, ad_data in antardashas.items():
-                if ad_data['start'] <= current_datetime < ad_data['end']:
+                if ad_data["start"] <= current_datetime < ad_data["end"]:
                     # Found current Antardasha
                     current_ad = {
-                        "start": ad_data['start'],
-                        "end": ad_data['end'],
-                        "pratyantardashas": OrderedDict()
+                        "start": ad_data["start"],
+                        "end": ad_data["end"],
+                        "pratyantardashas": OrderedDict(),
                     }
 
-                    pratyantardashas = ad_data.get('pratyantardashas', {})
+                    pratyantardashas = ad_data.get("pratyantardashas", {})
                     for pd_lord, pd_data in pratyantardashas.items():
-                        if pd_data['start'] <= current_datetime < pd_data['end']:
+                        if pd_data["start"] <= current_datetime < pd_data["end"]:
                             # Found current Pratyantardasha
                             current_pd = {
-                                "start": pd_data['start'],
-                                "end": pd_data['end']
+                                "start": pd_data["start"],
+                                "end": pd_data["end"],
                             }
                             current_ad["pratyantardashas"][pd_lord] = current_pd
                             break  # Found PD, no need to check others in this AD
@@ -170,25 +179,29 @@ def _extract_current_periods(all_periods: Dict[str, Any], current_datetime: date
     return current_structure
 
 
-def _extract_upcoming_periods(all_periods: Dict[str, Any], current_datetime: datetime) -> Dict[str, Any]:
+def _extract_upcoming_periods(
+    all_periods: dict[str, Any], current_datetime: datetime
+) -> dict[str, Any]:
     """
     Extracts the next 3 antardashas, potentially crossing mahadasha boundaries,
     starting from the end of the current antardasha.
     """
-    flat_antardashas = []
+    flat_antardashas: list[Any] = []
     mahadashas = all_periods.get("mahadashas", {})
 
     # 1. Flatten all antardashas into a single ordered list
     for md_lord, md_data in mahadashas.items():
-        antardashas = md_data.get('antardashas', {})
+        antardashas = md_data.get("antardashas", {})
         for ad_lord, ad_data in antardashas.items():
             # Store references to reconstruct the structure later
-            flat_antardashas.append({
-                "md_lord": md_lord,
-                "ad_lord": ad_lord,
-                "ad_data": ad_data,
-                "md_data": {"start": md_data["start"], "end": md_data["end"]}
-            })
+            flat_antardashas.append(
+                {
+                    "md_lord": md_lord,
+                    "ad_lord": ad_lord,
+                    "ad_data": ad_data,
+                    "md_data": {"start": md_data["start"], "end": md_data["end"]},
+                }
+            )
 
     if not flat_antardashas:
         return {"mahadashas": OrderedDict()}
@@ -196,27 +209,27 @@ def _extract_upcoming_periods(all_periods: Dict[str, Any], current_datetime: dat
     # 2. Find the index of the current antardasha
     current_ad_index = -1
     for i, ad_info in enumerate(flat_antardashas):
-        if ad_info["ad_data"]['start'] <= current_datetime < ad_info["ad_data"]['end']:
+        if ad_info["ad_data"]["start"] <= current_datetime < ad_info["ad_data"]["end"]:
             current_ad_index = i
             break
 
     # Handle edge case where current_datetime is before the first dasha
     if current_ad_index == -1:
         for i, ad_info in enumerate(flat_antardashas):
-            if ad_info["ad_data"]['start'] > current_datetime:
+            if ad_info["ad_data"]["start"] > current_datetime:
                 current_ad_index = i - 1  # Start collecting from the next item
                 break
 
     # If still not found or at the very end, return empty
     if current_ad_index is None or current_ad_index >= len(flat_antardashas) - 1:
-         return {"mahadashas": OrderedDict()}
+        return {"mahadashas": OrderedDict()}
 
     # 3. Get the next 3 antardashas from the list
     start_index = current_ad_index + 1
     upcoming_ads_list = flat_antardashas[start_index : start_index + 3]
 
     # 4. Rebuild the required nested dictionary structure
-    upcoming_periods = {"mahadashas": OrderedDict()}
+    upcoming_periods: dict[str, Any] = {"mahadashas": OrderedDict()}
     for ad_info in upcoming_ads_list:
         md_lord = ad_info["md_lord"]
         ad_lord = ad_info["ad_lord"]
@@ -226,23 +239,24 @@ def _extract_upcoming_periods(all_periods: Dict[str, Any], current_datetime: dat
             upcoming_periods["mahadashas"][md_lord] = {
                 "start": ad_info["md_data"]["start"],
                 "end": ad_info["md_data"]["end"],
-                "antardashas": OrderedDict()
+                "antardashas": OrderedDict(),
             }
 
         # Add the antardasha to its corresponding Mahadasha
-        upcoming_periods["mahadashas"][md_lord]["antardashas"][ad_lord] = ad_info["ad_data"]
+        upcoming_periods["mahadashas"][md_lord]["antardashas"][ad_lord] = ad_info[
+            "ad_data"
+        ]
 
     return upcoming_periods
 
 
-
 def calculate_vimshottari_dashas(
-    person_birth_datetime: datetime, 
+    person_birth_datetime: datetime,
     timezone_offset: float,
     latitude: float,  # Retained for API consistency, not used in this calculation
-    longitude: float, # Retained for API consistency, not used in this calculation
+    longitude: float,  # Retained for API consistency, not used in this calculation
     ayanamsa_degrees: float,
-    max_depth: int = 3
+    max_depth: int = 3,
 ) -> Dashas:
     """
     Main function to calculate all Vimshottari dasha periods using corrected logic.
@@ -253,9 +267,7 @@ def calculate_vimshottari_dashas(
     )
 
     # 2. Generate the properly nested "all" periods structure
-    all_periods = {
-        "mahadashas": OrderedDict()
-    }
+    all_periods: dict[str, Any] = {"mahadashas": OrderedDict()}
     current_lord = dasha_lord_at_birth
     current_start_date = cycle_start_date
 
@@ -264,30 +276,29 @@ def calculate_vimshottari_dashas(
         duration_days = duration_years * YEAR_DURATION_DAYS
         end_date = current_start_date + timedelta(days=duration_days)
 
-        mahadasha_data = {
-            "start": current_start_date,
-            "end": end_date
-        }
+        mahadasha_data: dict[str, Any] = {"start": current_start_date, "end": end_date}
 
         # Generate antardashas (and potentially pratyantardashas)
         if max_depth >= 2:
-            mahadasha_data['antardashas'] = _generate_sub_periods(
+            mahadasha_data["antardashas"] = _generate_sub_periods(
                 parent_lord=current_lord,
                 parent_start_date=current_start_date,
                 parent_duration_days=duration_days,
                 current_level=2,
-                max_depth=max_depth
+                max_depth=max_depth,
             )
 
         all_periods["mahadashas"][current_lord] = mahadasha_data
 
         current_start_date = end_date
         current_lord = get_next_adhipati(current_lord)
-    
+
     # 4. Calculate Dasha balance
     balance = {}
     birth_mahadasha = all_periods["mahadashas"][dasha_lord_at_birth]
-    remaining_days = (birth_mahadasha['end'] - person_birth_datetime).total_seconds() / (24 * 3600)
+    remaining_days = (
+        birth_mahadasha["end"] - person_birth_datetime
+    ).total_seconds() / (24 * 3600)
     balance[dasha_lord_at_birth] = round(remaining_days / YEAR_DURATION_DAYS, 4)
 
     # 5. Extract current and upcoming periods using current time
@@ -299,7 +310,7 @@ def calculate_vimshottari_dashas(
         balance=balance,
         all=all_periods,
         current=current_periods,
-        upcoming=upcoming_periods
+        upcoming=upcoming_periods,
     )
 
 
@@ -324,22 +335,30 @@ if __name__ == "__main__":
 
     print("\n--- Full Dasha Tree (Sample) ---")
     # Let's inspect the Venus Mahadasha
-    venus_md = dashas.all['mahadashas'].get("Venus")
+    venus_md = dashas.all["mahadashas"].get("Venus")
     if venus_md:
-        print(f"Venus Mahadasha: {venus_md['start'].strftime('%Y-%m-%d')} to {venus_md['end'].strftime('%Y-%m-%d')}")
+        print(
+            f"Venus Mahadasha: {venus_md['start'].strftime('%Y-%m-%d')} to {venus_md['end'].strftime('%Y-%m-%d')}"
+        )
 
         # Inspect the Venus-Saturn bhukti using 'antardashas' key
-        venus_antardashas = venus_md.get('antardashas', {})
+        venus_antardashas = venus_md.get("antardashas", {})
         saturn_bhukti = venus_antardashas.get("Saturn")
         if saturn_bhukti:
-            print(f"  Saturn Bhukti: {saturn_bhukti['start'].strftime('%Y-%m-%d')} to {saturn_bhukti['end'].strftime('%Y-%m-%d')}")
+            print(
+                f"  Saturn Bhukti: {saturn_bhukti['start'].strftime('%Y-%m-%d')} to {saturn_bhukti['end'].strftime('%Y-%m-%d')}"
+            )
 
             # Inspect the Pratyantardashas within Venus-Saturn using 'pratyantardashas' key
-            pratyantars = saturn_bhukti.get('pratyantardashas', {})
+            pratyantars = saturn_bhukti.get("pratyantardashas", {})
             if pratyantars:
                 print("    Pratyantardashas:")
-                for pr_lord, pr_data in list(pratyantars.items())[:3]:  # Print first 3 for brevity
-                    print(f"      {pr_lord.ljust(8)}: {pr_data['start'].strftime('%Y-%m-%d')}")
+                for pr_lord, pr_data in list(pratyantars.items())[
+                    :3
+                ]:  # Print first 3 for brevity
+                    print(
+                        f"      {pr_lord.ljust(8)}: {pr_data['start'].strftime('%Y-%m-%d')}"
+                    )
 
     print("\n--- Current Dasha Period (as of now) ---")
     current_mahadashas = dashas.current.get("mahadashas", {})
@@ -357,9 +376,15 @@ if __name__ == "__main__":
         current_pd_lord = list(current_pratyantardashas.keys())[0]
         current_pd_data = current_pratyantardashas[current_pd_lord]
 
-        print(f"MD: {current_md_lord} ({current_md_data['start'].strftime('%Y-%m-%d')} to {current_md_data['end'].strftime('%Y-%m-%d')})")
-        print(f"AD: {current_ad_lord} ({current_ad_data['start'].strftime('%Y-%m-%d')} to {current_ad_data['end'].strftime('%Y-%m-%d')})")
-        print(f"PD: {current_pd_lord} ({current_pd_data['start'].strftime('%Y-%m-%d')} to {current_pd_data['end'].strftime('%Y-%m-%d')})")
+        print(
+            f"MD: {current_md_lord} ({current_md_data['start'].strftime('%Y-%m-%d')} to {current_md_data['end'].strftime('%Y-%m-%d')})"
+        )
+        print(
+            f"AD: {current_ad_lord} ({current_ad_data['start'].strftime('%Y-%m-%d')} to {current_ad_data['end'].strftime('%Y-%m-%d')})"
+        )
+        print(
+            f"PD: {current_pd_lord} ({current_pd_data['start'].strftime('%Y-%m-%d')} to {current_pd_data['end'].strftime('%Y-%m-%d')})"
+        )
 
     print("\n--- Upcoming Antardashas ---")
     upcoming_mahadashas = dashas.upcoming.get("mahadashas", {})
@@ -368,4 +393,6 @@ if __name__ == "__main__":
     else:
         for md_lord, md_data in upcoming_mahadashas.items():
             for ad_lord, ad_data in md_data.get("antardashas", {}).items():
-                print(f"{md_lord.ljust(8)} - {ad_lord.ljust(8)}: {ad_data['start'].strftime('%Y-%m-%d')} to {ad_data['end'].strftime('%Y-%m-%d')}")
+                print(
+                    f"{md_lord.ljust(8)} - {ad_lord.ljust(8)}: {ad_data['start'].strftime('%Y-%m-%d')} to {ad_data['end'].strftime('%Y-%m-%d')}"
+                )

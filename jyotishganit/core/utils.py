@@ -4,7 +4,7 @@ Utility functions for jyotishganit library.
 Provides common calculations and conversions used across modules.
 """
 
-from jyotishganit.core.constants import ZODIAC_SIGNS, NAKSHATRAS, NAKSHATRA_DEITIES
+from jyotishganit.core.constants import NAKSHATRA_DEITIES, NAKSHATRAS, ZODIAC_SIGNS
 
 
 def longitude_to_zodiac(longitude: float) -> tuple[str, float]:

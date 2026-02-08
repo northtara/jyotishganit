@@ -5,33 +5,33 @@ Provides functions to calculate complete birth charts with JSON-LD output.
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Any
 
-from jyotishganit.core.astronomical import calculate_all_positions
-from jyotishganit.core.models import Person, VedicBirthChart, RasiChart
-from jyotishganit.core.utils import longitude_to_zodiac, longitude_to_nakshatra
-from jyotishganit.core.constants import DIVISIONAL_CHARTS
-
-import jyotishganit.components.houses as houses
-import jyotishganit.components.aspects as aspects
-import jyotishganit.components.panchanga as panchanga
-import jyotishganit.components.divisional_charts as divisional_charts
 import jyotishganit.components.ashtakavarga as ashtakavarga
+import jyotishganit.components.aspects as aspects
+import jyotishganit.components.divisional_charts as divisional_charts
+import jyotishganit.components.houses as houses
+import jyotishganit.components.panchanga as panchanga
 import jyotishganit.components.strengths as strengths
 import jyotishganit.dasha.vimshottari as vimshottari
+from jyotishganit.core.astronomical import calculate_all_positions
+from jyotishganit.core.constants import DIVISIONAL_CHARTS
+from jyotishganit.core.models import Person, RasiChart, VedicBirthChart
+from jyotishganit.core.utils import longitude_to_nakshatra, longitude_to_zodiac
+
 
 def calculate_birth_chart(
     birth_date: datetime,
     latitude: float,
     longitude: float,
     timezone_offset: float = 0.0,
-    location_name: Optional[str] = None,
-    name: Optional[str] = None
+    location_name: str | None = None,
+    name: str | None = None,
 ) -> VedicBirthChart:
     """
     Calculate complete Vedic birth chart with all components.
     """
-    utc_datetime = birth_date - timedelta(hours=timezone_offset)
+    birth_date - timedelta(hours=timezone_offset)
 
     # Create person info
     person = Person(
@@ -39,7 +39,7 @@ def calculate_birth_chart(
         latitude=latitude,
         longitude=longitude,
         timezone_offset=timezone_offset,
-        name=name
+        name=name,
     )
 
     # Calculate astronomical positions
@@ -64,10 +64,7 @@ def calculate_birth_chart(
     house_objects[0].nakshatra_deity = asc_deity
 
     # Create D1 chart
-    d1_chart = RasiChart(
-        planets=planets,
-        houses=house_objects
-    )
+    d1_chart = RasiChart(planets=planets, houses=house_objects)
 
     # Panchanga
     pancha = panchanga.create_panchanga(birth_date, timezone_offset, ayanamsa.value)
@@ -98,13 +95,13 @@ def calculate_birth_chart(
         d1_chart=d1_chart,
         divisional_charts=div_charts,
         ashtakavarga=av,
-        dashas=dashas
+        dashas=dashas,
     )
 
     return birth_chart
 
 
-def get_birth_chart_json(chart: VedicBirthChart) -> Dict[str, Any]:
+def get_birth_chart_json(chart: VedicBirthChart) -> dict[str, Any]:
     """
     Convert birth chart to JSON-LD dictionary.
 
@@ -129,5 +126,6 @@ def get_birth_chart_json_string(chart: VedicBirthChart, indent: int = 2) -> str:
         JSON-formatted string
     """
     import json
+
     d = chart.to_dict()
     return json.dumps(d, indent=indent, ensure_ascii=False)

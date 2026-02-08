@@ -5,15 +5,21 @@ Tests tithi, nakshatra, yoga, karana, and vaara calculations
 across various dates to ensure accuracy and verify ordering.
 """
 
-import pytest
 from datetime import datetime
-from jyotishganit.main import calculate_birth_chart
+
+import pytest
+
 from jyotishganit.components.panchanga import (
-    calculate_tithi, calculate_nakshatra, calculate_yoga,
-    calculate_karana, calculate_vaara, create_panchanga,
-    get_lunar_phase
+    calculate_karana,
+    calculate_nakshatra,
+    calculate_tithi,
+    calculate_vaara,
+    calculate_yoga,
+    create_panchanga,
+    get_lunar_phase,
 )
 from jyotishganit.core.constants import NAKSHATRAS
+from jyotishganit.main import calculate_birth_chart
 
 
 class TestPanchangaCalculations:
@@ -34,7 +40,7 @@ class TestPanchangaCalculations:
         """Test that panchanga has all required components."""
         panchanga = chart_delhi.panchanga
 
-        required_fields = ['tithi', 'nakshatra', 'yoga', 'karana', 'vaara']
+        required_fields = ["tithi", "nakshatra", "yoga", "karana", "vaara"]
         for field in required_fields:
             assert hasattr(panchanga, field)
             assert getattr(panchanga, field) is not None
@@ -48,14 +54,20 @@ class TestPanchangaCalculations:
 
         # Current calculation gives 'Kaulava', but user says should be 'Balava'
         # Let's compute the lunar phase to see what's happening
-        from jyotishganit.components.panchanga import get_lunar_phase
-        from jyotishganit.core.astronomical import get_timescale
         from datetime import timedelta
-        import math
+
+        from jyotishganit.core.astronomical import get_timescale
 
         utc_dt = dt - timedelta(hours=tz)
         ts = get_timescale()
-        t = ts.utc(utc_dt.year, utc_dt.month, utc_dt.day, utc_dt.hour, utc_dt.minute, utc_dt.second)
+        t = ts.utc(
+            utc_dt.year,
+            utc_dt.month,
+            utc_dt.day,
+            utc_dt.hour,
+            utc_dt.minute,
+            utc_dt.second,
+        )
         moon_phase = get_lunar_phase(t)
         karana_index = int(moon_phase / 6) % 60
 
@@ -89,13 +101,20 @@ class TestPanchangaCalculations:
     def test_lunar_phase_range(self, sample_date_delhi):
         """Test lunar phase values are within 0-360 degrees."""
         dt, tz, lat, lon = sample_date_delhi
-        from jyotishganit.components.panchanga import get_lunar_phase
-        from jyotishganit.core.astronomical import get_timescale
         from datetime import timedelta
+
+        from jyotishganit.core.astronomical import get_timescale
 
         utc_dt = dt - timedelta(hours=tz)
         ts = get_timescale()
-        t = ts.utc(utc_dt.year, utc_dt.month, utc_dt.day, utc_dt.hour, utc_dt.minute, utc_dt.second)
+        t = ts.utc(
+            utc_dt.year,
+            utc_dt.month,
+            utc_dt.day,
+            utc_dt.hour,
+            utc_dt.minute,
+            utc_dt.second,
+        )
         moon_phase = get_lunar_phase(t)
 
         assert 0.0 <= moon_phase <= 360.0
@@ -104,7 +123,7 @@ class TestPanchangaCalculations:
     def test_karana_names_are_valid(self, sample_date_delhi):
         """Test that karana names are from the official list."""
         dt, tz, lat, lon = sample_date_delhi
-        from jyotishganit.core.constants import MOVABLE_KARANAS, FIXED_KARANAS
+        from jyotishganit.core.constants import FIXED_KARANAS, MOVABLE_KARANAS
 
         # All valid karana names
         valid_karanas = MOVABLE_KARANAS + FIXED_KARANAS
@@ -112,6 +131,7 @@ class TestPanchangaCalculations:
         karanas = []
         for hour in range(0, 24, 1):  # Every hour
             from datetime import timedelta
+
             test_dt = dt + timedelta(hours=hour)
             karana = calculate_karana(test_dt, tz)
             karanas.append(karana)
@@ -166,7 +186,10 @@ class TestPanchangaCalculations:
     def test_vaara_calculation(self):
         """Test weekday calculation."""
         test_dates = [
-            (datetime(2025, 1, 1, 12, 0, 0), "Wednesday"),  # January 1, 2025 is Wednesday
+            (
+                datetime(2025, 1, 1, 12, 0, 0),
+                "Wednesday",
+            ),  # January 1, 2025 is Wednesday
             (datetime(2025, 1, 2, 12, 0, 0), "Thursday"),
             (datetime(2025, 1, 3, 12, 0, 0), "Friday"),
         ]
@@ -176,17 +199,20 @@ class TestPanchangaCalculations:
             print(f"{dt.date()}: {vaara} (expected {expected})")
             # Just test that it returns a valid day name
             from jyotishganit.core.constants import VAARA_NAMES
+
             assert vaara in VAARA_NAMES
 
     def test_complete_panchanga_creation(self):
         """Test creating a complete panchanga with all components."""
-        from jyotishganit.core.astronomical import get_timescale, calculate_ayanamsa
-        
+        from jyotishganit.core.astronomical import calculate_ayanamsa, get_timescale
+
         dt = datetime(2025, 1, 15, 12, 0, 0)
         tz = 5.5
-        
+
         # Calculate ayanamsa
-        t = get_timescale().utc(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+        t = get_timescale().utc(
+            dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second
+        )
         ayanamsa_value = calculate_ayanamsa(t)  # Already returns a float
-        
-        panchanga = create_panchanga(dt, tz, ayanamsa_value)
+
+        create_panchanga(dt, tz, ayanamsa_value)
