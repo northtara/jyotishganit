@@ -2,7 +2,7 @@
 Astronomical calculations for jyotishganit.
 
 Provides high-precision planetary positions using Skyfield with JPL ephemeris.
-Implements True Chitra Paksha Ayanamsa for Vedic charts.
+Implements Lahiri (Chitrapaksha) Ayanamsa matching IENA and AstroSage conventions.
 """
 
 import os
@@ -105,13 +105,16 @@ def skyfield_time_from_datetime(birth_date: datetime, timezone_offset: float) ->
 
 
 def calculate_ayanamsa(t) -> float:
-    """Calculate True Chitra Paksha Ayanamsa at time t."""
-    spica = _get_spica()
-    eph = get_ephemeris()
-    pos = eph['earth'].at(t).observe(spica).apparent()
-    _, lon, _ = pos.ecliptic_latlon()
-    ayanamsa = lon.degrees - 180.0
-    return ayanamsa if ayanamsa >= 0 else ayanamsa + 360
+    """Calculate Lahiri ayanamsa at time t.
+
+    Uses the standard Lahiri (Chitrapaksha) polynomial matching IENA and AstroSage.
+    Replaces True Chitra Paksha (Spica-pinned), which ran ~1'48" ahead and shifted
+    all Vimshottari dasha boundaries by ~13 days.
+
+    Formula: 23°51'11.4" + 50.2742"/yr × T  (T = Julian years from J2000.0)
+    """
+    T = t.J  # Julian years from J2000.0
+    return (23.85317 + 0.013965 * T) % 360
 
 
 def tropical_to_sidereal(tropical_lon: float, ayanamsa: float) -> float:
@@ -638,7 +641,7 @@ def calculate_all_positions(person: Person) -> Tuple[AyanamsaModel, float, List[
     """Compute ayanamsa, ascendant, and planet positions."""
     t = skyfield_time_from_datetime(person.birth_datetime, person.timezone_offset or 0)
     ayanamsa_value = calculate_ayanamsa(t)
-    ayanamsa = AyanamsaModel(name="True Chitra Paksha", value=ayanamsa_value)
+    ayanamsa = AyanamsaModel(name="Lahiri", value=ayanamsa_value)
     asc_lon = calculate_ascendant(t, person.latitude, person.longitude, ayanamsa_value)
     planets = calculate_planet_positions(t, ayanamsa_value, asc_lon)
     return ayanamsa, asc_lon, planets
