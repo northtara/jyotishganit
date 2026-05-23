@@ -114,7 +114,7 @@ def calculate_ayanamsa(t) -> float:
     Formula: 23°51'11.4" + 50.2742"/yr × T  (T = Julian years from J2000.0)
     """
     T = t.J - 2000.0  # Julian years elapsed since J2000.0
-    return (23.85317 + 0.013965 * T) % 360
+    return (23.83844 + 0.013965 * T) % 360
 
 
 def tropical_to_sidereal(tropical_lon: float, ayanamsa: float) -> float:
