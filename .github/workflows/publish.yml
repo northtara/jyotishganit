@@ -3,6 +3,7 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -25,6 +26,7 @@ jobs:
         pip install build twine
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
+        pip install -e .
 
     - name: Run full test suite
       run: |
