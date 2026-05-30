@@ -155,7 +155,7 @@ def calculate_ascendant(t, latitude: float, longitude: float, ayanamsa: float) -
 
 def calculate_obliquity(t):
     """Calculates the obliquity of the ecliptic using the IAU 1980 formula."""
-    T = t.tdb / 36525.0
+    T = (t.tt - 2451545.0) / 36525.0
     eps_arcsec = 84381.448 - 46.8150 * T - 0.00059 * T**2 + 0.001813 * T**3
     return eps_arcsec / 3600.0
 
