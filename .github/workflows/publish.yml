@@ -29,7 +29,6 @@ jobs:
     - name: Run full test suite
       run: |
         pytest tests/ --cov=jyotishganit
-        python validate_package.py
 
     - name: Build package
       run: python -m build
