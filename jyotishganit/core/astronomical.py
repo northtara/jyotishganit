@@ -5,45 +5,54 @@ Provides high-precision planetary positions using Skyfield with JPL ephemeris.
 Implements True Chitra Paksha Ayanamsa for Vedic charts.
 """
 
-import os
-from datetime import datetime, timedelta
 import math
-from typing import Dict, List, Tuple
-from functools import lru_cache
+import os
 import platform
+from datetime import datetime, timedelta
+from functools import cache
 
-from skyfield.api import load, Loader, wgs84, Star
+from skyfield import almanac
+from skyfield.api import Loader, Star, load, wgs84
 from skyfield.data import hipparcos
 from skyfield.framelib import ecliptic_frame
-from skyfield import almanac
 
-from jyotishganit.core.models import Person, Ayanamsa as AyanamsaModel, PlanetPosition, PlanetDignities
 from jyotishganit.core.constants import (
-    PLANETARY_DIGNITIES, PLANETARY_TATTVA, SIGN_TATTVA, TATTVA_RELATIONS
+    PLANETARY_DIGNITIES,
+    PLANETARY_TATTVA,
+    SIGN_TATTVA,
+    TATTVA_RELATIONS,
+)
+from jyotishganit.core.models import (
+    Ayanamsa as AyanamsaModel,
+)
+from jyotishganit.core.models import (
+    Person,
+    PlanetDignities,
+    PlanetPosition,
 )
 
 
 def _get_data_directory():
     """
     Get platform-appropriate data directory for astronomical files.
-    
+
     Returns:
         str: Path to the data directory following platform conventions
     """
     system = platform.system()
-    
+
     if system == "Windows":
         # Use LOCALAPPDATA on Windows (e.g., C:\Users\username\AppData\Local)
-        base_dir = os.environ.get('LOCALAPPDATA', os.path.expanduser('~'))
-        data_dir = os.path.join(base_dir, 'jyotishganit')
+        base_dir = os.environ.get("LOCALAPPDATA", os.path.expanduser("~"))
+        data_dir = os.path.join(base_dir, "jyotishganit")
     elif system == "Darwin":  # macOS
         # Use Application Support on macOS
-        data_dir = os.path.expanduser('~/Library/Application Support/jyotishganit')
+        data_dir = os.path.expanduser("~/Library/Application Support/jyotishganit")
     else:  # Linux and other Unix-like systems
         # Use XDG Base Directory specification
-        xdg_data = os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share'))
-        data_dir = os.path.join(xdg_data, 'jyotishganit')
-    
+        xdg_data = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+        data_dir = os.path.join(xdg_data, "jyotishganit")
+
     return data_dir
 
 
@@ -52,20 +61,23 @@ DATA_DIR = _get_data_directory()
 os.makedirs(DATA_DIR, exist_ok=True)
 
 # Custom loader for data(directory)
-loader = Loader(DATA_DIR, verbose=True)  # Verbose=True to see progress bars during downloads
+loader = Loader(
+    DATA_DIR, verbose=True
+)  # Verbose=True to see progress bars during downloads
 
 # Initialize astronomical objects with error handling
 _ts = None
 _eph = None
 
+
 def _initialize_astronomical_data():
     """Initialize astronomical data with proper error handling."""
     global _ts, _eph
-    
+
     if _ts is None or _eph is None:
         try:
             _ts = loader.timescale()
-            _eph = loader('de421.bsp')
+            _eph = loader("de421.bsp")
         except Exception as e:
             raise RuntimeError(
                 f"Failed to initialize astronomical data. This usually happens on first run "
@@ -73,17 +85,20 @@ def _initialize_astronomical_data():
                 f"connection and sufficient disk space (~10MB). Error: {e}"
             ) from e
 
+
 def get_timescale():
     """Get initialized timescale object."""
     _initialize_astronomical_data()
     return _ts
 
+
 def get_ephemeris():
-    """Get initialized ephemeris object.""" 
+    """Get initialized ephemeris object."""
     _initialize_astronomical_data()
     return _eph
 
-@lru_cache(maxsize=None)
+
+@cache
 def _get_spica() -> Star:
     """Get cached Spica star object - matches original implementation."""
     with load.open(hipparcos.URL) as f:
@@ -98,8 +113,12 @@ def skyfield_time_from_datetime(birth_date: datetime, timezone_offset: float) ->
     utc_datetime = birth_date - timedelta(hours=timezone_offset)
     ts = get_timescale()
     t = ts.utc(
-        utc_datetime.year, utc_datetime.month, utc_datetime.day,
-        utc_datetime.hour, utc_datetime.minute, utc_datetime.second
+        utc_datetime.year,
+        utc_datetime.month,
+        utc_datetime.day,
+        utc_datetime.hour,
+        utc_datetime.minute,
+        utc_datetime.second,
     )
     return t
 
@@ -108,7 +127,7 @@ def calculate_ayanamsa(t) -> float:
     """Calculate True Chitra Paksha Ayanamsa at time t."""
     spica = _get_spica()
     eph = get_ephemeris()
-    pos = eph['earth'].at(t).observe(spica).apparent()
+    pos = eph["earth"].at(t).observe(spica).apparent()
     _, lon, _ = pos.ecliptic_latlon()
     ayanamsa = lon.degrees - 180.0
     return ayanamsa if ayanamsa >= 0 else ayanamsa + 360
@@ -180,7 +199,7 @@ def get_motion_type(planet_name: str, t) -> str:
         "Mercury": "mercury",
         "Jupiter": "jupiter barycenter",
         "Venus": "venus",
-        "Saturn": "saturn barycenter"
+        "Saturn": "saturn barycenter",
     }
 
     if planet_name not in body_mapping:
@@ -191,10 +210,12 @@ def get_motion_type(planet_name: str, t) -> str:
         body_name = body_mapping[planet_name]
         body = eph[body_name]
         # Use apparent position for better accuracy
-        pos = eph['earth'].at(t).observe(body).apparent()
+        pos = eph["earth"].at(t).observe(body).apparent()
 
         # Get ecliptic coordinates and rates using ecliptic frame
-        lat, lon, dist, lat_rate, lon_rate, range_rate = pos.frame_latlon_and_rates(ecliptic_frame)
+        lat, lon, dist, lat_rate, lon_rate, range_rate = pos.frame_latlon_and_rates(
+            ecliptic_frame
+        )
 
         # Convert lon_rate to degrees per day
         try:
@@ -220,22 +241,24 @@ def get_motion_type(planet_name: str, t) -> str:
         return "direct"
 
 
-def calculate_planet_positions(t, ayanamsa: float, ascendant: float) -> List[PlanetPosition]:
+def calculate_planet_positions(
+    t, ayanamsa: float, ascendant: float
+) -> list[PlanetPosition]:
     """Calculate sidereal positions for all planets."""
     eph = get_ephemeris()
     planets = [
-        ("Sun", eph['sun']),
-        ("Moon", eph['moon']),
-        ("Mars", eph['mars']),
-        ("Mercury", eph['mercury']),
-        ("Jupiter", eph['jupiter barycenter']),
-        ("Venus", eph['venus']),
-        ("Saturn", eph['saturn barycenter']),
+        ("Sun", eph["sun"]),
+        ("Moon", eph["moon"]),
+        ("Mars", eph["mars"]),
+        ("Mercury", eph["mercury"]),
+        ("Jupiter", eph["jupiter barycenter"]),
+        ("Venus", eph["venus"]),
+        ("Saturn", eph["saturn barycenter"]),
     ]
 
     positions = []
     for name, body in planets:
-        pos = eph['earth'].at(t).observe(body).apparent()
+        pos = eph["earth"].at(t).observe(body).apparent()
         tropical_lon = get_ecliptic_longitude(pos)
         sidereal_lon = tropical_to_sidereal(tropical_lon, ayanamsa)
         house = get_house_position(sidereal_lon, ascendant)
@@ -261,7 +284,7 @@ def calculate_planet_positions(t, ayanamsa: float, ascendant: float) -> List[Pla
             shadbala={},  # Placeholder
             dignities=dignities,
             conjuncts=[],  # Placeholder
-            aspects={"gives": [], "receives": []}  # No motion here
+            aspects={"gives": [], "receives": []},  # No motion here
         )
         positions.append(planet_pos)
 
@@ -275,7 +298,9 @@ def calculate_planet_positions(t, ayanamsa: float, ascendant: float) -> List[Pla
         house = get_house_position(sidereal_lon, ascendant)
         sign, sign_degrees = lon_to_sign_degrees(sidereal_lon)
         nakshatra, pada, deity = lon_to_nakshatra(sidereal_lon)
-        dignities = calculate_dignities(name.split()[0], sign, sign_degrees)  # Use 'Rahu' or 'Ketu'
+        dignities = calculate_dignities(
+            name.split()[0], sign, sign_degrees
+        )  # Use 'Rahu' or 'Ketu'
         motion_type = get_motion_type(name, t)
         planet_pos = PlanetPosition(
             celestial_body=name,
@@ -289,7 +314,7 @@ def calculate_planet_positions(t, ayanamsa: float, ascendant: float) -> List[Pla
             shadbala={},
             dignities=dignities,
             conjuncts=[],
-            aspects={"gives": [], "receives": []}
+            aspects={"gives": [], "receives": []},
         )
         positions.append(planet_pos)
 
@@ -298,14 +323,18 @@ def calculate_planet_positions(t, ayanamsa: float, ascendant: float) -> List[Pla
 
 # Dignities calculations use imported constants
 
+
 def get_planet_tattva(planet: str) -> str:
     return PLANETARY_TATTVA.get(planet, "Water")
+
 
 def get_sign_tattva(sign: str) -> str:
     return SIGN_TATTVA.get(sign, "Water")
 
-def get_friendly_tattvas(tattva: str) -> List[str]:
+
+def get_friendly_tattvas(tattva: str) -> list[str]:
     return TATTVA_RELATIONS.get(tattva, [])
+
 
 def calculate_dignities(planet: str, sign: str, degrees: float) -> PlanetDignities:
     """Calculate dignities for a planet in given sign at given degrees using priorities."""
@@ -319,31 +348,41 @@ def calculate_dignities(planet: str, sign: str, degrees: float) -> PlanetDigniti
     # Priority hierarchy for dignities
 
     # 1. Deep Exaltation - exact exalted degree within 0.05 degrees (5' orb)
-    if (planet_data.get("exaltation") and
-        sign == planet_data["exaltation"]["sign"] and
-        planet_data["exaltation"]["degrees"] is not None and
-        abs(degrees - planet_data["exaltation"]["degrees"]) < 0.05):
-            dignity = "deep_exaltation"
+    if (
+        planet_data.get("exaltation")
+        and sign == planet_data["exaltation"]["sign"]
+        and planet_data["exaltation"]["degrees"] is not None
+        and abs(degrees - planet_data["exaltation"]["degrees"]) < 0.05
+    ):
+        dignity = "deep_exaltation"
 
     # 2. Deep Debilitation - exact debilitated degree within 0.05 degrees (5' orb)
-    elif (planet_data.get("debilitation") and
-          sign == planet_data["debilitation"]["sign"] and
-          planet_data["debilitation"]["degrees"] is not None and
-          abs(degrees - planet_data["debilitation"]["degrees"]) < 0.05):
-            dignity = "deep_debilitation"
+    elif (
+        planet_data.get("debilitation")
+        and sign == planet_data["debilitation"]["sign"]
+        and planet_data["debilitation"]["degrees"] is not None
+        and abs(degrees - planet_data["debilitation"]["degrees"]) < 0.05
+    ):
+        dignity = "deep_debilitation"
 
     # 3. Exalted - in exaltation sign (sign-wide for traditional planets like Moon)
     elif planet_data.get("exaltation") and sign == planet_data["exaltation"]["sign"]:
         dignity = "exalted"
 
     # 4. Debilitated - in debilitation sign (sign-wide)
-    elif planet_data.get("debilitation") and sign == planet_data["debilitation"]["sign"]:
+    elif (
+        planet_data.get("debilitation") and sign == planet_data["debilitation"]["sign"]
+    ):
         dignity = "debilitated"
 
     # 5. Moolatrikona - in moolatrikona sign and degrees range
-    elif (planet_data.get("moolatrikona") and
-          sign == planet_data["moolatrikona"]["sign"] and
-          planet_data["moolatrikona"]["min_degrees"] <= degrees <= planet_data["moolatrikona"]["max_degrees"]):
+    elif (
+        planet_data.get("moolatrikona")
+        and sign == planet_data["moolatrikona"]["sign"]
+        and planet_data["moolatrikona"]["min_degrees"]
+        <= degrees
+        <= planet_data["moolatrikona"]["max_degrees"]
+    ):
         dignity = "moolatrikona"
 
     # 6. Own sign - in any own sign
@@ -358,34 +397,90 @@ def calculate_dignities(planet: str, sign: str, degrees: float) -> PlanetDigniti
         dignity=dignity,
         planet_tattva=planet_tattva,
         rashi_tattva=rashi_tattva,
-        friendly_tattvas=friendly_tattvas
+        friendly_tattvas=friendly_tattvas,
     )
 
 
-def lon_to_sign_degrees(longitude: float) -> Tuple[str, float]:
+def lon_to_sign_degrees(longitude: float) -> tuple[str, float]:
     """Convert ecliptic lon to sign and degrees within sign."""
-    signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
-             'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces']
+    signs = [
+        "Aries",
+        "Taurus",
+        "Gemini",
+        "Cancer",
+        "Leo",
+        "Virgo",
+        "Libra",
+        "Scorpio",
+        "Sagittarius",
+        "Capricorn",
+        "Aquarius",
+        "Pisces",
+    ]
     sign_index = int(longitude // 30)
     degrees = longitude % 30
     return signs[sign_index], degrees
 
 
-def lon_to_nakshatra(longitude: float) -> Tuple[str, int, str]:
+def lon_to_nakshatra(longitude: float) -> tuple[str, int, str]:
     """Convert lon to nakshatra, pada, deity."""
     nakshatras = [
-        'Ashwini', 'Bharani', 'Krittika', 'Rohini', 'Mrigashira', 'Ardra',
-        'Punarvasu', 'Pushya', 'Ashlesha', 'Magha', 'Purva Phalguni',
-        'Uttara Phalguni', 'Hasta', 'Chitra', 'Swati', 'Vishakha', 'Anuradha',
-        'Jyeshtha', 'Mula', 'Purva Ashadha', 'Uttara Ashadha', 'Shravana',
-        'Dhanishta', 'Shatabhisha', 'Purva Bhadrapada', 'Uttara Bhadrapada', 'Revati'
+        "Ashwini",
+        "Bharani",
+        "Krittika",
+        "Rohini",
+        "Mrigashira",
+        "Ardra",
+        "Punarvasu",
+        "Pushya",
+        "Ashlesha",
+        "Magha",
+        "Purva Phalguni",
+        "Uttara Phalguni",
+        "Hasta",
+        "Chitra",
+        "Swati",
+        "Vishakha",
+        "Anuradha",
+        "Jyeshtha",
+        "Mula",
+        "Purva Ashadha",
+        "Uttara Ashadha",
+        "Shravana",
+        "Dhanishta",
+        "Shatabhisha",
+        "Purva Bhadrapada",
+        "Uttara Bhadrapada",
+        "Revati",
     ]
     deities = [
-        'Ashwini Kumaras', 'Yama', 'Agni', 'Brahma', 'Soma', 'Rudra',
-        'Aditi', 'Brihaspati', 'Nagas', 'Pitris', 'Aryaman', 'Bhaga',
-        'Surya', 'Vishwakarma', 'Vayu', 'Indra-Agni', 'Mitra', 'Indra',
-        'Nirriti', 'Apah', 'Vishvedevatas', 'Vishnu', 'Vasus', 'Varuna',
-        'Ajikapada', 'Ahirbudhnya', 'Pushan'
+        "Ashwini Kumaras",
+        "Yama",
+        "Agni",
+        "Brahma",
+        "Soma",
+        "Rudra",
+        "Aditi",
+        "Brihaspati",
+        "Nagas",
+        "Pitris",
+        "Aryaman",
+        "Bhaga",
+        "Surya",
+        "Vishwakarma",
+        "Vayu",
+        "Indra-Agni",
+        "Mitra",
+        "Indra",
+        "Nirriti",
+        "Apah",
+        "Vishvedevatas",
+        "Vishnu",
+        "Vasus",
+        "Varuna",
+        "Ajikapada",
+        "Ahirbudhnya",
+        "Pushan",
     ]
     span = 360 / 27
     pada_span = span / 4
@@ -410,7 +505,7 @@ def get_planet_velocity(planet_name: str, t) -> float:
         "Mercury": "mercury",
         "Jupiter": "jupiter barycenter",
         "Venus": "venus",
-        "Saturn": "saturn barycenter"
+        "Saturn": "saturn barycenter",
     }
 
     if planet_name not in body_mapping:
@@ -419,7 +514,7 @@ def get_planet_velocity(planet_name: str, t) -> float:
     try:
         eph = get_ephemeris()
         body = eph[body_mapping[planet_name]]
-        pos = eph['earth'].at(t).observe(body).apparent()
+        pos = eph["earth"].at(t).observe(body).apparent()
         _, lon, dist, _, lon_rate, _ = pos.frame_latlon_and_rates(ecliptic_frame)
 
         # Get longitude rate in degrees per day
@@ -442,13 +537,13 @@ def get_planet_declination(planet_name: str, t) -> float:
         return 0.0
 
     body_mapping = {
-        "Sun": 'sun',
-        "Moon": 'moon',
+        "Sun": "sun",
+        "Moon": "moon",
         "Mars": "mars",
         "Mercury": "mercury",
         "Jupiter": "jupiter barycenter",
         "Venus": "venus",
-        "Saturn": "saturn barycenter"
+        "Saturn": "saturn barycenter",
     }
 
     if planet_name not in body_mapping:
@@ -457,7 +552,7 @@ def get_planet_declination(planet_name: str, t) -> float:
     try:
         eph = get_ephemeris()
         body = eph[body_mapping[planet_name]]
-        pos = eph['earth'].at(t).observe(body).apparent()
+        pos = eph["earth"].at(t).observe(body).apparent()
         _, dec, _ = pos.radec()
         return dec.degrees
     except Exception as e:
@@ -465,17 +560,27 @@ def get_planet_declination(planet_name: str, t) -> float:
         return 0.0
 
 
-def get_sunrise_sunset(person: Person) -> Tuple[float, float]:
+def get_sunrise_sunset(person: Person) -> tuple[float, float]:
     """Get sunrise and sunset times from midnight in hours."""
     try:
         location = wgs84.latlon(person.latitude, person.longitude)
-        t = skyfield_time_from_datetime(person.birth_datetime, person.timezone_offset or 0)
+        skyfield_time_from_datetime(person.birth_datetime, person.timezone_offset or 0)
 
         # Get sunrise/sunset around birth date
         ts = get_timescale()
         eph = get_ephemeris()
-        t0 = ts.utc(person.birth_datetime.year, person.birth_datetime.month, person.birth_datetime.day, 0)
-        t1 = ts.utc(person.birth_datetime.year, person.birth_datetime.month, person.birth_datetime.day+1, 0)
+        t0 = ts.utc(
+            person.birth_datetime.year,
+            person.birth_datetime.month,
+            person.birth_datetime.day,
+            0,
+        )
+        t1 = ts.utc(
+            person.birth_datetime.year,
+            person.birth_datetime.month,
+            person.birth_datetime.day + 1,
+            0,
+        )
 
         f = almanac.sunrise_sunset(eph, location)
         times, events = almanac.find_discrete(t0, t1, f)
@@ -483,12 +588,19 @@ def get_sunrise_sunset(person: Person) -> Tuple[float, float]:
         sunrise = None
         sunset = None
         # Calculate reference point: local midnight converted to UTC
-        local_midnight = person.birth_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
-        midnight_utc = local_midnight - timedelta(hours=person.timezone_offset or 0)
+        local_midnight = person.birth_datetime.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        local_midnight - timedelta(hours=person.timezone_offset or 0)
 
         for i, event in enumerate(events):
             event_utc = times[i].utc_datetime()
-            local_hour = event_utc.hour + event_utc.minute / 60.0 + event_utc.second / 3600.0 + (person.timezone_offset or 0)
+            local_hour = (
+                event_utc.hour
+                + event_utc.minute / 60.0
+                + event_utc.second / 3600.0
+                + (person.timezone_offset or 0)
+            )
 
             # Handle day rollover - if local hour >= 24, subtract 24
             if local_hour >= 24:
@@ -517,8 +629,20 @@ def is_birth_daytime(person: Person) -> bool:
 def get_house_position(planet_lon: float, asc_lon: float) -> int:
     """Whole sign house system (sign-based houses)."""
     # Get ascendant sign index (1-12)
-    signs = ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
-             'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces']
+    signs = [
+        "Aries",
+        "Taurus",
+        "Gemini",
+        "Cancer",
+        "Leo",
+        "Virgo",
+        "Libra",
+        "Scorpio",
+        "Sagittarius",
+        "Capricorn",
+        "Aquarius",
+        "Pisces",
+    ]
     asc_sign, _ = lon_to_sign_degrees(asc_lon)
     asc_sign_index = signs.index(asc_sign) + 1
 
@@ -554,7 +678,7 @@ def calculate_solar_ingress(solar_longitude: float, year: int) -> datetime:
 
         def sun_longitude_diff(t):
             """Calculate signed difference from target longitude."""
-            pos = eph['earth'].at(t).observe(eph['sun']).apparent()
+            pos = eph["earth"].at(t).observe(eph["sun"]).apparent()
             _, lon, _ = pos.ecliptic_latlon()
 
             # Handle wraparound at 0/360
@@ -580,7 +704,7 @@ def calculate_solar_ingress(solar_longitude: float, year: int) -> datetime:
             # Check if we crossed the target (sign change in difference)
             if (prev_val < 0 and curr_val >= 0) or (prev_val > 0 and curr_val <= 0):
                 # Refine with binary search between days[i-1] and days[i]
-                t_low = days[i-1]
+                t_low = days[i - 1]
                 t_high = days[i]
 
                 # Binary search to minute-level precision
@@ -634,7 +758,9 @@ def get_solar_ingress_weekday(solar_longitude: float, year: int) -> int:
     return vedic_weekday
 
 
-def calculate_all_positions(person: Person) -> Tuple[AyanamsaModel, float, List[PlanetPosition]]:
+def calculate_all_positions(
+    person: Person,
+) -> tuple[AyanamsaModel, float, list[PlanetPosition]]:
     """Compute ayanamsa, ascendant, and planet positions."""
     t = skyfield_time_from_datetime(person.birth_datetime, person.timezone_offset or 0)
     ayanamsa_value = calculate_ayanamsa(t)
@@ -645,4 +771,9 @@ def calculate_all_positions(person: Person) -> Tuple[AyanamsaModel, float, List[
 
 
 # Export main functions
-__all__ = ['skyfield_time_from_datetime', 'calculate_ayanamsa', 'calculate_all_positions', 'get_solar_ingress_weekday']
+__all__ = [
+    "skyfield_time_from_datetime",
+    "calculate_ayanamsa",
+    "calculate_all_positions",
+    "get_solar_ingress_weekday",
+]

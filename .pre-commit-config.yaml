@@ -1,0 +1,26 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+  # Use project tools from the uv-managed environment.
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (local)
+        entry: uv run --locked ruff check --fix
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: ruff-format (local)
+        entry: uv run --locked ruff format
+        language: system
+        types: [python]
+      - id: mypy
+        name: mypy (local)
+        entry: uv run --locked mypy jyotishganit/
+        language: system
+        pass_filenames: false

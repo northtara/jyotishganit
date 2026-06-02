@@ -5,24 +5,27 @@ This module defines the core data structures used throughout the library.
 All classes are designed to be immutable and serializable for JSON-LD output.
 """
 
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
-from datetime import datetime
+from __future__ import annotations
 
-from jyotishganit.core.constants import ZODIAC_SIGNS, MIN_REQUIRED_SHADBALA
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
+
+from jyotishganit.core.constants import MIN_REQUIRED_SHADBALA
 
 
 @dataclass
 class Person:
     """Represents a person with birth details."""
+
     birth_datetime: datetime
     latitude: float  # Degrees
     longitude: float  # Degrees
     timezone_offset: float = 0.0  # Hours UTC
-    timezone: Optional[str] = None
-    name: Optional[str] = None
+    timezone: str | None = None
+    name: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "@type": "Person",
@@ -33,55 +36,54 @@ class Person:
                 "geo": {
                     "@type": "GeoCoordinates",
                     "latitude": self.latitude,
-                    "longitude": self.longitude
-                }
-            }
+                    "longitude": self.longitude,
+                },
+            },
         }
 
 
 @dataclass
 class Ayanamsa:
     """Represents an ayanamsa value."""
+
     name: str
     value: float  # Degrees
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "@type": "Ayanamsa",
-            "name": self.name,
-            "value": self.value
-        }
+    def to_dict(self) -> dict[str, Any]:
+        return {"@type": "Ayanamsa", "name": self.name, "value": self.value}
 
 
 @dataclass
 class Panchanga:
     """Represents the five limbs of panchanga."""
+
     tithi: str
     nakshatra: str
     yoga: str
     karana: str
     vaara: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "@type": "Panchanga",
             "tithi": self.tithi,
             "nakshatra": self.nakshatra,
             "yoga": self.yoga,
             "karana": self.karana,
-            "vaara": self.vaara
+            "vaara": self.vaara,
         }
 
 
 @dataclass
 class PlanetDignities:
     """Consolidated dignities for a planet."""
+
     dignity: str = "none"  # "deep_exaltation", "exalted", "deep_debilitation", "debilitated", "moolatrikona", "own_sign", "friendly", "neutral", "enemy"
     planet_tattva: str = "Water"
     rashi_tattva: str = "Water"
-    friendly_tattvas: List[str] = field(default_factory=lambda: ["Water"])
+    friendly_tattvas: list[str] = field(default_factory=lambda: ["Water"])
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "@type": "PlanetDignities",
             "dignity": self.dignity,
@@ -94,6 +96,7 @@ class PlanetDignities:
 @dataclass
 class PlanetPosition:
     """Represents a planet's position in the chart."""
+
     celestial_body: str
     sign: str
     sign_degrees: float
@@ -102,13 +105,13 @@ class PlanetPosition:
     nakshatra_deity: str
     house: int
     motion_type: str  # "direct", "retrograde", or "stationary"
-    shadbala: Dict[str, Any]
+    shadbala: dict[str, Any]
     dignities: PlanetDignities
-    conjuncts: List[str]
-    aspects: Dict[str, List[Dict[str, Any]]]  # gives and receives
-    has_lordship_houses: List[int] = field(default_factory=list)
+    conjuncts: list[str]
+    aspects: dict[str, list[dict[str, Any]]]  # gives and receives
+    has_lordship_houses: list[int] = field(default_factory=list)
 
-    def _format_shadbala(self) -> Dict[str, Any]:
+    def _format_shadbala(self) -> dict[str, Any]:
         """Format shadbala data into the proper grouped JSON structure."""
         formatted = {}
 
@@ -121,7 +124,7 @@ class PlanetPosition:
                 "Ojhayugmarashiamshabala": sthana.get("Ojhayugmarashiamshabala", 0),
                 "Kendradhibala": sthana.get("Kendradhibala", 0),
                 "Drekshanabala": sthana.get("Drekshanabala", 0),
-                "Total": sthana.get("Total", 0)
+                "Total": sthana.get("Total", 0),
             }
 
         # Handle Digbala (single value)
@@ -138,11 +141,17 @@ class PlanetPosition:
                 "VarshaMaasaDinaHoraBala": kaala.get("VarshaMaasaDinaHoraBala", 0),
                 "Ayanabala": kaala.get("Ayanabala", 0),
                 "Total": kaala.get("Total", 0),
-                "Yuddhabala": kaala.get("Yuddhabala", 0)
+                "Yuddhabala": kaala.get("Yuddhabala", 0),
             }
 
         # Handle single-value components
-        single_components = ["Cheshtabala", "Naisargikabala", "Drikbala", "Ishtabala", "Kashtabala"]
+        single_components = [
+            "Cheshtabala",
+            "Naisargikabala",
+            "Drikbala",
+            "Ishtabala",
+            "Kashtabala",
+        ]
         for component in single_components:
             if component in self.shadbala:
                 formatted[component] = self.shadbala[component]
@@ -153,17 +162,17 @@ class PlanetPosition:
             rupas = shadbala_final.get("Rupas", 0)
             min_required = MIN_REQUIRED_SHADBALA.get(self.celestial_body, 0)
             meets_requirement = "Yes" if rupas >= min_required else "No"
-            
+
             formatted["Shadbala"] = {
                 "Total": shadbala_final.get("Total", 0),
                 "Rupas": rupas,
                 "MinRequired": min_required,
-                "MeetsRequirement": meets_requirement
+                "MeetsRequirement": meets_requirement,
             }
 
         return formatted
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "@type": "PlanetPosition",
             "celestialBody": self.celestial_body,
@@ -178,30 +187,30 @@ class PlanetPosition:
             "dignities": self.dignities.to_dict(),
             "conjuncts": self.conjuncts,
             "aspects": self.aspects,
-            "hasLordshipHouses": self.has_lordship_houses
+            "hasLordshipHouses": self.has_lordship_houses,
         }
-
 
 
 @dataclass
 class House:
     """Represents a house in the chart."""
+
     number: int
     sign: str
     lord: str
     bhava_bala: float
-    occupants: List[PlanetPosition]
-    aspects_received: List[Dict[str, Any]]
-    purposes: List[str]
+    occupants: list[PlanetPosition]
+    aspects_received: list[dict[str, Any]]
+    purposes: list[str]
     lord_placed_sign: str = ""
     lord_placed_house: int = 0
     # For ascendant house only (number=1)
-    sign_degrees: Optional[float] = None
-    nakshatra: Optional[str] = None
-    pada: Optional[int] = None
-    nakshatra_deity: Optional[str] = None
+    sign_degrees: float | None = None
+    nakshatra: str | None = None
+    pada: int | None = None
+    nakshatra_deity: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         d = {
             "@type": "House",
             "number": self.number,
@@ -212,7 +221,7 @@ class House:
             "bhavaBala": self.bhava_bala,
             "occupants": [p.to_dict() for p in self.occupants],
             "aspectsReceived": self.aspects_received,
-            "purposes": self.purposes
+            "purposes": self.purposes,
         }
         # Add ascendant details for house 1
         if self.number == 1:
@@ -230,58 +239,59 @@ class House:
 @dataclass
 class RasiChart:
     """Represents a Rasi (D1) or Bhav chart."""
-    planets: List[PlanetPosition]
-    houses: List[House]
 
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "@type": "RasiChart",
-            "houses": [h.to_dict() for h in self.houses]
-        }
+    planets: list[PlanetPosition]
+    houses: list[House]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"@type": "RasiChart", "houses": [h.to_dict() for h in self.houses]}
 
 
 @dataclass
 class DivisionalAscendant:
     """Ascendant in divisional charts."""
+
     sign: str
     d1_house_placement: int  # D1 house where D1 asc sign falls
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "@type": "DivisionalAscendant",
             "sign": self.sign,
-            "d1HousePlacement": self.d1_house_placement
+            "d1HousePlacement": self.d1_house_placement,
         }
 
 
 @dataclass
 class DivisionalPlanetPosition:
     """Planet position in divisional charts."""
+
     celestial_body: str
     sign: str
     d1_house_placement: int  # D1 house where D1 sign belongs
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "@type": "DivisionalPlanetPosition",
             "celestialBody": self.celestial_body,
             "sign": self.sign,
-            "d1HousePlacement": self.d1_house_placement
+            "d1HousePlacement": self.d1_house_placement,
         }
 
 
 @dataclass
 class DivisionalHouse:
     """House in divisional charts."""
+
     number: int
     sign: str
     lord: str
     d1_house_placement: int
-    occupants: List[DivisionalPlanetPosition] = field(default_factory=list)
-    aspects_received: List[Dict[str, Any]] = field(default_factory=list)
-    purposes: List[str] = field(default_factory=list)
+    occupants: list[DivisionalPlanetPosition] = field(default_factory=list)
+    aspects_received: list[dict[str, Any]] = field(default_factory=list)
+    purposes: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "@type": "DivisionalHouse",
             "number": self.number,
@@ -290,38 +300,36 @@ class DivisionalHouse:
             "d1HousePlacement": self.d1_house_placement,
             "occupants": [p.to_dict() for p in self.occupants],
             "aspectsReceived": self.aspects_received,
-            "purposes": self.purposes
+            "purposes": self.purposes,
         }
 
 
 @dataclass
 class DivisionalChart:
     """Represents a divisional chart."""
+
     chart_type: str  # "d9", "d4", etc.
     ascendant: DivisionalAscendant
-    houses: List[DivisionalHouse]
+    houses: list[DivisionalHouse]
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "@type": f"{self.chart_type.upper()}Chart",
             "ascendant": self.ascendant.to_dict(),
-            "houses": [h.to_dict() for h in self.houses]
+            "houses": [h.to_dict() for h in self.houses],
         }
 
 
 @dataclass
 class Aspect:
     """Represents a planetary aspect."""
+
     from_body: str
-    to_body: Optional[str]  # None for house aspect
+    to_body: str | None  # None for house aspect
     type: str  # "5th", "7th", "3rd", etc.
 
-    def to_dict(self) -> Dict[str, Any]:
-        result = {
-            "@type": "Aspect",
-            "from": self.from_body,
-            "type": self.type
-        }
+    def to_dict(self) -> dict[str, Any]:
+        result = {"@type": "Aspect", "from": self.from_body, "type": self.type}
         if self.to_body:
             result["to"] = self.to_body
         else:
@@ -332,14 +340,14 @@ class Aspect:
 @dataclass
 class Ashtakavarga:
     """Represents Ashtakavarga calculations."""
-    bhav: Dict[str, Dict[str, int]]  # Individual Bhinna Ashtakavarga charts for each planet (sign -> bindu)
-    sav: Dict[str, int]  # Sarvashtakavarga (total) (sign -> bindu)
 
-    def to_dict(self) -> Dict[str, Any]:
-        result = {
-            "@type": "Ashtakavarga",
-            "sav": self.sav
-        }
+    bhav: dict[
+        str, dict[str, int]
+    ]  # Individual Bhinna Ashtakavarga charts (sign -> bindu)
+    sav: dict[str, int]  # Sarvashtakavarga (total) (sign -> bindu)
+
+    def to_dict(self) -> dict[str, Any]:
+        result = {"@type": "Ashtakavarga", "sav": self.sav}
         # Add individual Bhinna charts
         for planet, bindus in self.bhav.items():
             result[f"{planet.lower()}Bhav"] = bindus
@@ -349,15 +357,16 @@ class Ashtakavarga:
 @dataclass
 class VedicBirthChart:
     """Complete Vedic birth chart."""
+
     person: Person
     ayanamsa: Ayanamsa
     panchanga: Panchanga
     d1_chart: RasiChart
-    divisional_charts: Dict[str, DivisionalChart]
+    divisional_charts: dict[str, DivisionalChart]
     ashtakavarga: Ashtakavarga
-    dashas: 'Dashas'
+    dashas: Dashas
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to final JSON-LD dict."""
         return {
             "@context": "https://jyotishganit.org/vocab/v1.jsonld",
@@ -366,27 +375,30 @@ class VedicBirthChart:
             "ayanamsa": self.ayanamsa.to_dict(),
             "panchanga": self.panchanga.to_dict(),
             "d1Chart": self.d1_chart.to_dict(),
-            "divisionalCharts": {k: v.to_dict() for k, v in self.divisional_charts.items()},
+            "divisionalCharts": {
+                k: v.to_dict() for k, v in self.divisional_charts.items()
+            },
             "ashtakavarga": self.ashtakavarga.to_dict(),
-            "dashas": self.dashas.to_dict()
+            "dashas": self.dashas.to_dict(),
         }
 
 
 @dataclass
 class DashaPeriod:
     """Represents a dasha period with start and end dates."""
+
     lord: str
     start_date: datetime
-    end_date: Optional[datetime] = None
-    subperiods: List['DashaPeriod'] = field(default_factory=list)
+    end_date: datetime | None = None
+    subperiods: list[DashaPeriod] = field(default_factory=list)
     level: str = ""  # mahadasha, antardasha, pratyantardasha, etc.
 
-    def to_dict(self) -> Dict[str, Any]:
-        d = {
+    def to_dict(self) -> dict[str, Any]:
+        d: dict[str, Any] = {
             "@type": "DashaPeriod",
             "lord": self.lord,
             "startDate": self.start_date.strftime("%d-%m-%Y"),
-            "level": self.level
+            "level": self.level,
         }
         if self.end_date:
             d["endDate"] = self.end_date.strftime("%d-%m-%Y")
@@ -398,15 +410,18 @@ class DashaPeriod:
 @dataclass
 class Dashas:
     """Represents all dasha periods: all, current, upcoming."""
-    balance: Dict[str, float]  # Remaining balance of mahadashas at birth
-    all: Dict[str, Any]     # nested: {md_lord: {ad_lord: {pd_lord: period_data}}}
-    current: Dict[str, Any]      # nested: current {md_lord: {ad_lord: {pd_lord: period_data}}}
-    upcoming: Dict[str, Any]  # nested: {md_lord: {ad_lord: {pd_lord: period_data}}}
 
-    def _serialize_datetime_tree(self, period_data: Dict[str, Any]) -> Dict[str, Any]:
+    balance: dict[str, float]  # Remaining balance of mahadashas at birth
+    all: dict[str, Any]  # nested: {md_lord: {ad_lord: {pd_lord: period_data}}}
+    current: dict[
+        str, Any
+    ]  # nested: current {md_lord: {ad_lord: {pd_lord: period_data}}}
+    upcoming: dict[str, Any]  # nested: {md_lord: {ad_lord: {pd_lord: period_data}}}
+
+    def _serialize_datetime_tree(self, period_data: dict[str, Any]) -> dict[str, Any]:
         """Recursively serialize datetime objects in the period tree to strings."""
         if isinstance(period_data, dict):
-            result = {}
+            result: dict[str, Any] = {}
             for key, value in period_data.items():
                 if isinstance(value, dict):
                     result[key] = self._serialize_datetime_tree(value)
@@ -417,11 +432,11 @@ class Dashas:
             return result
         return period_data
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "@type": "Dashas",
             "balance": self.balance,
             "all": self._serialize_datetime_tree(self.all),
             "current": self._serialize_datetime_tree(self.current),
-            "upcoming": self._serialize_datetime_tree(self.upcoming)
+            "upcoming": self._serialize_datetime_tree(self.upcoming),
         }

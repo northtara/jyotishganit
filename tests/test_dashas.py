@@ -5,14 +5,18 @@ Tests dasha period calculations, Mahadasha start dates, sub-period divisions,
 and consistency with classical references.
 """
 
-import pytest
 from datetime import datetime, timedelta
-from jyotishganit.main import calculate_birth_chart
-from jyotishganit.dasha.vimshottari import (
-    calculate_vimshottari_dashas, calculate_dasha_start_date, get_next_adhipati,
-    _get_moon_nakshatra_at_birth
+
+from jyotishganit.core.constants import (
+    HUMAN_LIFE_SPAN_FOR_VIMSHOTTARI,
+    VIMSHOTTARI_DASHA_DURATIONS,
 )
-from jyotishganit.core.constants import VIMSHOTTARI_DASHA_DURATIONS, HUMAN_LIFE_SPAN_FOR_VIMSHOTTARI
+from jyotishganit.dasha.vimshottari import (
+    calculate_dasha_start_date,
+    calculate_vimshottari_dashas,
+    get_next_adhipati,
+)
+from jyotishganit.main import calculate_birth_chart
 
 
 class TestDashaConstants:
@@ -23,11 +27,23 @@ class TestDashaConstants:
         total_years = sum(VIMSHOTTARI_DASHA_DURATIONS.values())
         expected_total = HUMAN_LIFE_SPAN_FOR_VIMSHOTTARI
 
-        assert total_years == expected_total, f"Total dasha years {total_years} != {expected_total}"
+        assert total_years == expected_total, (
+            f"Total dasha years {total_years} != {expected_total}"
+        )
 
     def test_all_planets_have_durations(self):
         """Verify all 9 Vimshottari planets have duration assignments."""
-        expected_planets = ["Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury", "Ketu", "Venus"]
+        expected_planets = [
+            "Sun",
+            "Moon",
+            "Mars",
+            "Rahu",
+            "Jupiter",
+            "Saturn",
+            "Mercury",
+            "Ketu",
+            "Venus",
+        ]
         actual_planets = list(VIMSHOTTARI_DASHA_DURATIONS.keys())
 
         assert set(actual_planets) == set(expected_planets)
@@ -47,13 +63,26 @@ class TestMoonNakshatraCalculation:
         chart = calculate_birth_chart(birth, 28.6139, 77.2090, 5.5)
 
         # Extract Moon position for nakshatra calc
-        moon = next((p for p in chart.d1_chart.planets if p.celestial_body == "Moon"), None)
+        moon = next(
+            (p for p in chart.d1_chart.planets if p.celestial_body == "Moon"), None
+        )
         assert moon is not None
 
         # Mock the calculation (would use Skyfield in real implementation)
-        moon_longitude = (["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-                          "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"].index(moon.sign) * 30 +
-                         moon.sign_degrees)
+        moon_longitude = [
+            "Aries",
+            "Taurus",
+            "Gemini",
+            "Cancer",
+            "Leo",
+            "Virgo",
+            "Libra",
+            "Scorpio",
+            "Sagittarius",
+            "Capricorn",
+            "Aquarius",
+            "Pisces",
+        ].index(moon.sign) * 30 + moon.sign_degrees
 
         nakshatra_span = 360.0 / 27.0
         nak_index = int(moon_longitude / nakshatra_span)
@@ -61,7 +90,9 @@ class TestMoonNakshatraCalculation:
 
         # Valid range checks
         assert 0 <= nak_index <= 26, f"Nakshatra index {nak_index} out of range 0-26"
-        assert 0 <= remainder_degs <= nakshatra_span, f"Remainder {remainder_degs} out of range"
+        assert 0 <= remainder_degs <= nakshatra_span, (
+            f"Remainder {remainder_degs} out of range"
+        )
 
 
 class TestDashaStartCalculation:
@@ -74,7 +105,9 @@ class TestDashaStartCalculation:
 
         _, dasha_start = calculate_dasha_start_date(birth, 5.5, chart.ayanamsa.value)
 
-        assert dasha_start < birth, f"Dasha start {dasha_start} should be before birth {birth}"
+        assert dasha_start < birth, (
+            f"Dasha start {dasha_start} should be before birth {birth}"
+        )
 
     def test_birth_within_dasha_period(self):
         """Verify birth date falls within calculated dasha period."""
@@ -88,8 +121,9 @@ class TestDashaStartCalculation:
         end_date = start_date + timedelta(days=duration_years * 365.25)
 
         # Birth should be within this period
-        assert start_date <= birth <= end_date, \
+        assert start_date <= birth <= end_date, (
             f"Birth {birth} not within period {start_date} to {end_date}"
+        )
 
     def test_valid_planet_returned(self):
         """Verify returned lord is a valid Vimshottari planet."""
@@ -121,7 +155,17 @@ class TestSequenceLogic:
     def test_sequence_order_consistent(self):
         """Test Vimshottari sequence matches classical order."""
         # Classical Vimshottari sequence
-        expected_sequence = ["Sun", "Moon", "Mars", "Rahu", "Jupiter", "Saturn", "Mercury", "Ketu", "Venus"]
+        expected_sequence = [
+            "Sun",
+            "Moon",
+            "Mars",
+            "Rahu",
+            "Jupiter",
+            "Saturn",
+            "Mercury",
+            "Ketu",
+            "Venus",
+        ]
 
         current = "Sun"
         actual_sequence = [current]
@@ -131,8 +175,9 @@ class TestSequenceLogic:
             actual_sequence.append(current)
 
             # Check each step matches expected
-            assert current == expected_sequence[i + 1], \
-                f"Sequence mismatch at position {i+1}: expected {expected_sequence[i+1]}, got {current}"
+            assert current == expected_sequence[i + 1], (
+                f"Sequence mismatch at position {i + 1}: expected {expected_sequence[i + 1]}, got {current}"
+            )
 
         assert actual_sequence == expected_sequence
 
@@ -145,15 +190,18 @@ class TestCompleteDashaCalculation:
         chart = sample_vedic_chart_delhi
 
         dashas = calculate_vimshottari_dashas(
-            chart.person.birth_datetime, chart.person.timezone_offset,
-            chart.person.latitude, chart.person.longitude, chart.ayanamsa.value
+            chart.person.birth_datetime,
+            chart.person.timezone_offset,
+            chart.person.latitude,
+            chart.person.longitude,
+            chart.ayanamsa.value,
         )
 
         # Should have all major sections
-        assert hasattr(dashas, 'all')
-        assert hasattr(dashas, 'current')
-        assert hasattr(dashas, 'upcoming')
-        assert hasattr(dashas, 'balance')
+        assert hasattr(dashas, "all")
+        assert hasattr(dashas, "current")
+        assert hasattr(dashas, "upcoming")
+        assert hasattr(dashas, "balance")
 
         # Should have mahadashas
         assert "mahadashas" in dashas.all
@@ -171,7 +219,7 @@ class TestCompleteDashaCalculation:
         )
 
         total_span = timedelta(0)
-        for lord, data in dashas.all["mahadashas"].items():
+        for _lord, data in dashas.all["mahadashas"].items():
             duration = data["end"] - data["start"]
             total_span += duration
 
@@ -187,9 +235,12 @@ class TestCompleteDashaCalculation:
         chart = sample_vedic_chart_delhi
 
         dashas = calculate_vimshottari_dashas(
-            chart.person.birth_datetime, chart.person.timezone_offset,
-            chart.person.latitude, chart.person.longitude, chart.ayanamsa.value,
-            max_depth=3  # Include pratyantardashas
+            chart.person.birth_datetime,
+            chart.person.timezone_offset,
+            chart.person.latitude,
+            chart.person.longitude,
+            chart.ayanamsa.value,
+            max_depth=3,  # Include pratyantardashas
         )
 
         # Check first mahadasha
@@ -230,16 +281,20 @@ class TestCompleteDashaCalculation:
 
         # Should be less than or equal to total duration of that planet's dasha
         total_duration = VIMSHOTTARI_DASHA_DURATIONS[balance_planet]
-        assert balance_years <= total_duration, \
+        assert balance_years <= total_duration, (
             f"Balance {balance_years} exceeds total duration {total_duration}"
+        )
 
     def test_current_dasha_identification(self, sample_vedic_chart_delhi):
         """Test identification of current running dasha."""
         chart = sample_vedic_chart_delhi
 
         dashas = calculate_vimshottari_dashas(
-            chart.person.birth_datetime, chart.person.timezone_offset,
-            chart.person.latitude, chart.person.longitude, chart.ayanamsa.value
+            chart.person.birth_datetime,
+            chart.person.timezone_offset,
+            chart.person.latitude,
+            chart.person.longitude,
+            chart.ayanamsa.value,
         )
 
         # Current should exist and have proper structure
@@ -263,14 +318,19 @@ class TestCompleteDashaCalculation:
         chart = sample_vedic_chart_delhi
 
         dashas = calculate_vimshottari_dashas(
-            chart.person.birth_datetime, chart.person.timezone_offset,
-            chart.person.latitude, chart.person.longitude, chart.ayanamsa.value
+            chart.person.birth_datetime,
+            chart.person.timezone_offset,
+            chart.person.latitude,
+            chart.person.longitude,
+            chart.ayanamsa.value,
         )
 
         # Should have upcoming periods
         assert "mahadashas" in dashas.upcoming
-        upcoming_count = sum(len(md_data.get("antardashas", {}))
-                            for md_data in dashas.upcoming["mahadashas"].values())
+        upcoming_count = sum(
+            len(md_data.get("antardashas", {}))
+            for md_data in dashas.upcoming["mahadashas"].values()
+        )
 
         # Should have 3 upcoming antardashas as mentioned in implementation
         assert upcoming_count <= 3, f"Too many upcoming periods: {upcoming_count}"
@@ -310,8 +370,12 @@ class TestConsistency:
         birth = datetime(2020, 5, 15, 12, 0, 0)
 
         # Calculate with two different ayanamsa values
-        dashas_lahiri = calculate_vimshottari_dashas(birth, 5.5, 19.0760, 72.8777, 23.85)  # Lahiri
-        dashas_pushya = calculate_vimshottari_dashas(birth, 5.5, 19.0760, 72.8777, 21.21)  # Pushya
+        dashas_lahiri = calculate_vimshottari_dashas(
+            birth, 5.5, 19.0760, 72.8777, 23.85
+        )  # Lahiri
+        dashas_pushya = calculate_vimshottari_dashas(
+            birth, 5.5, 19.0760, 72.8777, 21.21
+        )  # Pushya
 
         # Starting dasha lord might differ (moon nakshatra depends on ayanamsa)
         lord_lahiri = list(dashas_lahiri.balance.keys())[0]
@@ -325,10 +389,10 @@ class TestConsistency:
     def test_edge_dates(self):
         """Test dasha calculation for edge dates."""
         edge_dates = [
-            datetime(1900, 1, 1, 0, 0, 0), # Century start
-            datetime(2000, 1, 1, 0, 0, 0), # Millennium
-            datetime(2020, 2, 29, 12, 0, 0), # Leap year leap day
-            datetime(2023, 12, 31, 23, 59, 59), # Year end
+            datetime(1900, 1, 1, 0, 0, 0),  # Century start
+            datetime(2000, 1, 1, 0, 0, 0),  # Millennium
+            datetime(2020, 2, 29, 12, 0, 0),  # Leap year leap day
+            datetime(2023, 12, 31, 23, 59, 59),  # Year end
         ]
 
         for birth_date in edge_dates:

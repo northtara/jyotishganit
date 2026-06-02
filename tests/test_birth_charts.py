@@ -5,10 +5,12 @@ Tests basic chart generation, timezone handling, geographical variations,
 and validates both planetary positions and house systems.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
+
+from jyotishganit.core.constants import ZODIAC_SIGNS
 from jyotishganit.main import calculate_birth_chart, get_birth_chart_json_string
-from jyotishganit.core.constants import ZODIAC_SIGNS, PLANETARY_RELATIONS
 
 
 class TestBirthChartBasic:
@@ -19,12 +21,12 @@ class TestBirthChartBasic:
         chart = sample_vedic_chart_delhi
 
         # Validate chart structure
-        assert hasattr(chart, 'person')
-        assert hasattr(chart, 'd1_chart')
-        assert hasattr(chart, 'panchanga')
-        assert hasattr(chart, 'divisional_charts')
-        assert hasattr(chart, 'ashtakavarga')
-        assert hasattr(chart, 'dashas')
+        assert hasattr(chart, "person")
+        assert hasattr(chart, "d1_chart")
+        assert hasattr(chart, "panchanga")
+        assert hasattr(chart, "divisional_charts")
+        assert hasattr(chart, "ashtakavarga")
+        assert hasattr(chart, "dashas")
 
         # Validate person info
         assert chart.person.latitude == 19.9993
@@ -60,20 +62,23 @@ class TestBirthChartBasic:
         assert '"@type": "VedicBirthChart"' in json_output
         assert '"planets"' in json_output or '"d1Chart"' in json_output
         assert '"houses"' in json_output
-        assert 'jyotishganit' in json_output
+        assert "jyotishganit" in json_output
 
 
 class TestTimezoneHandling:
     """Test timezone offset handling and UTC conversion."""
 
-    @pytest.mark.parametrize("tz_offset", [
-        0.0,   # GMT
-        5.5,   # IST
-        -4.0,  # EDT
-        9.0,   # JST
-        -8.0,  # PST
-        3.0,   # EET
-    ])
+    @pytest.mark.parametrize(
+        "tz_offset",
+        [
+            0.0,  # GMT
+            5.5,  # IST
+            -4.0,  # EDT
+            9.0,  # JST
+            -8.0,  # PST
+            3.0,  # EET
+        ],
+    )
     def test_timezone_offsets(self, tz_offset):
         """Test chart calculation with various timezone offsets."""
         birth = datetime(2020, 5, 15, 12, 0, 0)  # Noon local time
@@ -132,7 +137,9 @@ class TestGeographicDiversity:
         birth = datetime(2020, 12, 21, 12, 0, 0)
         # Test that extreme latitudes don't crash, even if some calculations may not be perfect
         try:
-            chart = calculate_birth_chart(birth, -77.85, 166.67, 13.0)  # Antarctica (McMurdo)
+            chart = calculate_birth_chart(
+                birth, -77.85, 166.67, 13.0
+            )  # Antarctica (McMurdo)
             # Extreme southern latitude should be handled
             assert chart.person.latitude == pytest.approx(-77.85, abs=1e-1)
             # Chart should be created even if some strength calculations might have issues
@@ -155,14 +162,17 @@ class TestGeographicDiversity:
 class TestTimeframeDiversity:
     """Test calculations across different historical timeframes."""
 
-    @pytest.mark.parametrize("year,month,day", [
-        (1900, 1, 1),     # Start of 20th century
-        (1950, 6, 15),    # Mid-century
-        (1975, 12, 25),   # Late 20th century
-        (2000, 1, 1),     # Millennium
-        (2010, 3, 21),    # 21st century
-        (2020, 2, 29),    # Leap year (2020 is leap)
-    ])
+    @pytest.mark.parametrize(
+        "year,month,day",
+        [
+            (1900, 1, 1),  # Start of 20th century
+            (1950, 6, 15),  # Mid-century
+            (1975, 12, 25),  # Late 20th century
+            (2000, 1, 1),  # Millennium
+            (2010, 3, 21),  # 21st century
+            (2020, 2, 29),  # Leap year (2020 is leap)
+        ],
+    )
     def test_historical_dates(self, year, month, day):
         """Test chart calculations for various historical dates."""
         birth = datetime(year, month, day, 12, 0, 0)
@@ -181,7 +191,7 @@ class TestTimeframeDiversity:
         """Test February 29 dates and leap year boundaries."""
         leap_dates = [
             datetime(2020, 2, 29, 23, 59, 59),  # End of leap day
-            datetime(1900, 3, 1, 0, 0, 1),      # Century non-leap year transition
+            datetime(1900, 3, 1, 0, 0, 1),  # Century non-leap year transition
         ]
 
         for birth_date in leap_dates:
@@ -195,7 +205,17 @@ class TestPlanetaryPositions:
     def test_all_planets_present(self, sample_vedic_chart_delhi):
         """Verify all classical planets are present in chart."""
         chart = sample_vedic_chart_delhi
-        expected_planets = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn", "Rahu", "Ketu"]
+        expected_planets = [
+            "Sun",
+            "Moon",
+            "Mars",
+            "Mercury",
+            "Jupiter",
+            "Venus",
+            "Saturn",
+            "Rahu",
+            "Ketu",
+        ]
 
         actual_planets = [p.celestial_body for p in chart.d1_chart.planets]
         assert set(actual_planets) == set(expected_planets)
@@ -249,7 +269,9 @@ class TestHouseSystem:
             house_occupants[house_num].append(planet.celestial_body)
 
         # Each planet should be in exactly one house
-        total_planets_placed = sum(len(occupants) for occupants in house_occupants.values())
+        total_planets_placed = sum(
+            len(occupants) for occupants in house_occupants.values()
+        )
         assert total_planets_placed == 9  # 9 classical planets
 
         # Some houses may have multiple planets, but all must be accounted for

@@ -4,10 +4,7 @@ Aspects component for jyotishganit library.
 Calculates planetary aspects according to Vedic astrology rules.
 """
 
-from typing import List, Dict, Any, Tuple
-from math import degrees, radians, sin, cos
-from jyotishganit.core.models import PlanetPosition, Aspect, House
-from jyotishganit.core.constants import ZODIAC_SIGNS
+from jyotishganit.core.models import Aspect, House, PlanetPosition
 
 # Planetary aspects in Vedic astrology
 PLANETARY_ASPECTS = {
@@ -23,15 +20,17 @@ PLANETARY_ASPECTS = {
 }
 
 
-def get_planets_in_house(planet_positions: List[PlanetPosition], house_num: int) -> List[str]:
+def get_planets_in_house(
+    planet_positions: list[PlanetPosition], house_num: int
+) -> list[str]:
     """Get list of planets in a specific house."""
     return [p.celestial_body for p in planet_positions if p.house == house_num]
 
 
-def calculate_conjuncts(planets: List[PlanetPosition]) -> None:
+def calculate_conjuncts(planets: list[PlanetPosition]) -> None:
     """Calculate conjunct planets for each planet in the list."""
     # Group planets by house
-    house_to_planets = {}
+    house_to_planets: dict[int, list[str]] = {}
     for planet in planets:
         if planet.house not in house_to_planets:
             house_to_planets[planet.house] = []
@@ -44,7 +43,7 @@ def calculate_conjuncts(planets: List[PlanetPosition]) -> None:
         planet.conjuncts = conjuncts
 
 
-def calculate_planet_aspects(planets: List[PlanetPosition]) -> List[Aspect]:
+def calculate_planet_aspects(planets: list[PlanetPosition]) -> list[Aspect]:
     """Calculate aspects between planets and return list of Aspect objects."""
     aspects = []
     planet_dict = {p.celestial_body: p for p in planets}
@@ -60,10 +59,7 @@ def calculate_planet_aspects(planets: List[PlanetPosition]) -> List[Aspect]:
         for aspect_house in aspects_houses:
             # Calculate target house for aspect
             temp = (planet.house + aspect_house - 1) % 12
-            if temp == 0:
-                target_house = 12
-            else:
-                target_house = temp
+            target_house = 12 if temp == 0 else temp
 
             # Note: Backward aspects (3,4,8,10) need special handling? For now, using same formula.
             # In Vedic astrology, some aspects are backward, but the formula above handles circular houses.
@@ -76,18 +72,18 @@ def calculate_planet_aspects(planets: List[PlanetPosition]) -> List[Aspect]:
                     continue  # Don't aspect self
 
                 aspect = Aspect(
-                    from_body=planet_name,
-                    to_body=target_planet,
-                    type=str(aspect_house)
+                    from_body=planet_name, to_body=target_planet, type=str(aspect_house)
                 )
                 aspects.append(aspect)
 
     return aspects
 
 
-def calculate_house_aspects(planets: List[PlanetPosition]) -> Dict[int, List[Dict[str, str]]]:
+def calculate_house_aspects(
+    planets: list[PlanetPosition],
+) -> dict[int, list[dict[str, str]]]:
     """Calculate which houses are aspected by which planets and aspect types."""
-    house_aspects = {i: [] for i in range(1, 13)}
+    house_aspects: dict[int, list[dict[str, str]]] = {i: [] for i in range(1, 13)}
 
     planet_dict = {p.celestial_body: p for p in planets}
 
@@ -101,21 +97,19 @@ def calculate_house_aspects(planets: List[PlanetPosition]) -> Dict[int, List[Dic
         for aspect_house in aspect_houses:
             # Calculate which house is aspected using corrected formula
             temp = (current_house + aspect_house - 1) % 12
-            if temp == 0:
-                aspected_house = 12
-            else:
-                aspected_house = temp
+            aspected_house = 12 if temp == 0 else temp
 
             # Add planet and aspect type to the aspected house list
-            house_aspects[aspected_house].append({
-                "aspecting_planet": planet_name,
-                "aspect_type": str(aspect_house)
-            })
+            house_aspects[aspected_house].append(
+                {"aspecting_planet": planet_name, "aspect_type": str(aspect_house)}
+            )
 
     return house_aspects
 
 
-def aspect_planets_to_houses(house_aspects: Dict[int, List[Dict[str, str]]], houses: List[House]) -> None:
+def aspect_planets_to_houses(
+    house_aspects: dict[int, list[dict[str, str]]], houses: list[House]
+) -> None:
     """Apply calculated aspects to House objects."""
     for house in houses:
         house_num = house.number
@@ -124,7 +118,9 @@ def aspect_planets_to_houses(house_aspects: Dict[int, List[Dict[str, str]]], hou
             house.aspects_received = house_aspects[house_num]
 
 
-def calculate_all_aspects(planets: List[PlanetPosition], houses: List[House]) -> Tuple[List[Aspect], List[PlanetPosition]]:
+def calculate_all_aspects(
+    planets: list[PlanetPosition], houses: list[House]
+) -> tuple[list[Aspect], list[PlanetPosition]]:
     """Calculate conjuncts, planetary aspects, and house aspects.
 
     Returns:
@@ -145,8 +141,12 @@ def calculate_all_aspects(planets: List[PlanetPosition], houses: List[House]) ->
     planet_dict = {p.celestial_body: p for p in planets}
 
     # Use sets to deduplicate (to_type, to, type) tuples for gives
-    gives_sets = {planet_name: set() for planet_name in planet_dict}
-    receives_sets = {planet_name: set() for planet_name in planet_dict}
+    gives_sets: dict[str, set[tuple[str, str | int, str]]] = {
+        planet_name: set() for planet_name in planet_dict
+    }
+    receives_sets: dict[str, set[tuple[str, str | int, str]]] = {
+        planet_name: set() for planet_name in planet_dict
+    }
 
     # Process planet-to-planet aspects for gives
     for aspect in aspects:
@@ -176,7 +176,9 @@ def calculate_all_aspects(planets: List[PlanetPosition], houses: List[House]) ->
         receives_list = []
         for from_type, source, aspect_type in receives_sets[planet_name]:
             if from_type == "planet":
-                receives_list.append({"from_planet": source, "aspect_type": aspect_type})
+                receives_list.append(
+                    {"from_planet": source, "aspect_type": aspect_type}
+                )
         planet.aspects["receives"] = receives_list
 
     return aspects, planets

@@ -5,10 +5,14 @@ Implements all standard Vedic divisional charts (D2 to D60) based on jyotishyami
 Each chart calculated from D1 (rasi) positions using sign-based division rules.
 """
 
-from jyotishganit.core.constants import DIVISIONAL_CHARTS, ZODIAC_SIGNS, SIGN_LORDS
+from jyotishganit.core.constants import SIGN_LORDS, ZODIAC_SIGNS
+from jyotishganit.core.models import (
+    DivisionalAscendant,
+    DivisionalChart,
+    DivisionalHouse,
+    DivisionalPlanetPosition,
+)
 from jyotishganit.core.utils import longitude_to_zodiac
-from jyotishganit.core.models import DivisionalChart, DivisionalAscendant, DivisionalPlanetPosition, DivisionalHouse
-from jyotishganit.components.aspects import PLANETARY_ASPECTS
 
 
 def signnum(sign_str: str) -> int:
@@ -356,7 +360,9 @@ def shashtiamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     return total_seconds, shas_sign, shas_deg
 
 
-def compute_divisional_position_for_type(sign: str, degrees: float, chart_type: str) -> str:
+def compute_divisional_position_for_type(
+    sign: str, degrees: float, chart_type: str
+) -> str:
     """Compute divisional position for given type, return divisional sign."""
     if chart_type == "D9":
         _, div_sign, _ = navamsa_from_long(sign, degrees)
@@ -403,14 +409,13 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
     div_asc_sign = compute_divisional_position_for_type(
         d1_chart.houses[0].sign, d1_chart.houses[0].sign_degrees, chart_type
     )
-    
+
     # Calculate which D1 house this divisional ascendant sign falls in
     div_asc_sign_num = signnum(div_asc_sign)
     d1_house_for_div_asc = ((div_asc_sign_num - asc_sign_d1_num) % 12) + 1
-    
+
     div_asc = DivisionalAscendant(
-        sign=div_asc_sign,
-        d1_house_placement=d1_house_for_div_asc
+        sign=div_asc_sign, d1_house_placement=d1_house_for_div_asc
     )
 
     # Create houses
@@ -432,20 +437,24 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
 
         # Create house 12 as Cancer and house 1 as Leo (special D2 numbering)
         if cancer_from_asc is not None:
-            div_houses.append(DivisionalHouse(
-                number=12,  # House 12 is Cancer
-                sign="Cancer",
-                lord=SIGN_LORDS["Cancer"],
-                d1_house_placement=cancer_from_asc
-            ))
+            div_houses.append(
+                DivisionalHouse(
+                    number=12,  # House 12 is Cancer
+                    sign="Cancer",
+                    lord=SIGN_LORDS["Cancer"],
+                    d1_house_placement=cancer_from_asc,
+                )
+            )
 
         if leo_from_asc is not None:
-            div_houses.append(DivisionalHouse(
-                number=1,   # House 1 is Leo
-                sign="Leo",
-                lord=SIGN_LORDS["Leo"],
-                d1_house_placement=leo_from_asc
-            ))
+            div_houses.append(
+                DivisionalHouse(
+                    number=1,  # House 1 is Leo
+                    sign="Leo",
+                    lord=SIGN_LORDS["Leo"],
+                    d1_house_placement=leo_from_asc,
+                )
+            )
     else:
         # Standard 12-house chart for other divisional charts
         for house_num in range(1, 13):
@@ -458,7 +467,7 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
                 number=house_num,
                 sign=house_sign,
                 lord=house_lord,
-                d1_house_placement=d1_house_placement
+                d1_house_placement=d1_house_placement,
             )
             div_houses.append(div_house)
 
@@ -475,7 +484,7 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
         div_planet = DivisionalPlanetPosition(
             celestial_body=planet.celestial_body,
             sign=p_sign,
-            d1_house_placement=planet.house
+            d1_house_placement=planet.house,
         )
 
         # Find the house with matching sign and add the planet
@@ -487,7 +496,5 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
     # Skip aspects calculation for divisional charts
 
     return DivisionalChart(
-        chart_type=chart_type.lower(),
-        ascendant=div_asc,
-        houses=div_houses
+        chart_type=chart_type.lower(), ascendant=div_asc, houses=div_houses
     )

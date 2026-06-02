@@ -5,10 +5,12 @@ Tests individual Binnna Ashtakavarga charts and Sarvashtakavarga totals
 against classical benchmarks from Maharishi Parashara's teachings.
 """
 
-import pytest
 from jyotishganit.components.ashtakavarga import (
-    BENEFIC_HOUSES, calculate_bhinna_ashtakavarga, calculate_ashtakavarga,
-    create_natal_chart_sign_mapping, calculate_ashtakavarga_for_chart
+    BENEFIC_HOUSES,
+    calculate_ashtakavarga,
+    calculate_ashtakavarga_for_chart,
+    calculate_bhinna_ashtakavarga,
+    create_natal_chart_sign_mapping,
 )
 from jyotishganit.core.constants import ZODIAC_SIGNS
 
@@ -18,7 +20,15 @@ class TestAshtakavargaConstants:
 
     def test_benefic_houses_defined(self):
         """Verify all planets have benefic house definitions."""
-        expected_planets = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"]
+        expected_planets = [
+            "Sun",
+            "Moon",
+            "Mars",
+            "Mercury",
+            "Jupiter",
+            "Venus",
+            "Saturn",
+        ]
         assert set(BENEFIC_HOUSES.keys()) == set(expected_planets)
 
         # Lagna should be included in all
@@ -30,7 +40,9 @@ class TestAshtakavargaConstants:
         for planet, contributors in BENEFIC_HOUSES.items():
             for contributor, houses in contributors.items():
                 for house_num in houses:
-                    assert 1 <= house_num <= 12, f"Invalid house {house_num} for {planet}-{contributor}"
+                    assert 1 <= house_num <= 12, (
+                        f"Invalid house {house_num} for {planet}-{contributor}"
+                    )
 
     def test_classical_totals(self, expected_ashtakavarga_benchmarks):
         """Verify classical total bindu counts for each planet's BAV."""
@@ -50,14 +62,14 @@ class TestBhinnaAshtakavarga:
         """Test basic structure of BAV calculation."""
         # Sample natal chart with planets in known positions
         natal_chart = {
-            "Sun": 4,        # Leo (natural Sun sign - should be strong)
-            "Moon": 3,       # Cancer
-            "Mars": 0,       # Aries
-            "Mercury": 2,    # Gemini (own sign)
-            "Jupiter": 8,    # Sagittarius
-            "Venus": 6,      # Libra
-            "Saturn": 10,    # Aquarius
-            "Lagna": 5,      # Virgo
+            "Sun": 4,  # Leo (natural Sun sign - should be strong)
+            "Moon": 3,  # Cancer
+            "Mars": 0,  # Aries
+            "Mercury": 2,  # Gemini (own sign)
+            "Jupiter": 8,  # Sagittarius
+            "Venus": 6,  # Libra
+            "Saturn": 10,  # Aquarius
+            "Lagna": 5,  # Virgo
         }
 
         bav = calculate_bhinna_ashtakavarga("Sun", natal_chart, BENEFIC_HOUSES)
@@ -67,7 +79,7 @@ class TestBhinnaAshtakavarga:
         assert set(bav.keys()) == set(ZODIAC_SIGNS)
 
         # All counts should be non-negative integers
-        for sign, bindus in bav.items():
+        for _sign, bindus in bav.items():
             assert isinstance(bindus, int)
             assert bindus >= 0
 
@@ -75,11 +87,19 @@ class TestBhinnaAshtakavarga:
         """Verify Sun's BAV totals match classical texts."""
         # Place Sun in its own sign (Leo = 4) for maximum exaltation
         natal_chart_sun_in_leo = {
-            "Sun": 4, "Moon": 0, "Mars": 0, "Mercury": 0,
-            "Jupiter": 0, "Venus": 0, "Saturn": 0, "Lagna": 0
+            "Sun": 4,
+            "Moon": 0,
+            "Mars": 0,
+            "Mercury": 0,
+            "Jupiter": 0,
+            "Venus": 0,
+            "Saturn": 0,
+            "Lagna": 0,
         }
 
-        sun_bav = calculate_bhinna_ashtakavarga("Sun", natal_chart_sun_in_leo, BENEFIC_HOUSES)
+        sun_bav = calculate_bhinna_ashtakavarga(
+            "Sun", natal_chart_sun_in_leo, BENEFIC_HOUSES
+        )
 
         # Sum should be 48 according to Parashara
         total_bindus = sum(sun_bav.values())
@@ -87,31 +107,47 @@ class TestBhinnaAshtakavarga:
 
         # Allow some tolerance due to computational factors
         tolerance = 2
-        assert abs(total_bindus - expected_total) <= tolerance, \
+        assert abs(total_bindus - expected_total) <= tolerance, (
             f"Sun BAV total {total_bindus} should be close to {expected_total}"
+        )
 
     def test_moon_bav_total_benchmark(self, expected_ashtakavarga_benchmarks):
         """Verify Moon's BAV totals match classical texts."""
         # Place Moon in Cancer for maximum strength
         natal_chart_moon_in_cancer = {
-            "Sun": 0, "Moon": 3, "Mars": 0, "Mercury": 0,
-            "Jupiter": 0, "Venus": 0, "Saturn": 0, "Lagna": 0
+            "Sun": 0,
+            "Moon": 3,
+            "Mars": 0,
+            "Mercury": 0,
+            "Jupiter": 0,
+            "Venus": 0,
+            "Saturn": 0,
+            "Lagna": 0,
         }
 
-        moon_bav = calculate_bhinna_ashtakavarga("Moon", natal_chart_moon_in_cancer, BENEFIC_HOUSES)
+        moon_bav = calculate_bhinna_ashtakavarga(
+            "Moon", natal_chart_moon_in_cancer, BENEFIC_HOUSES
+        )
 
         total_bindus = sum(moon_bav.values())
         expected_total = expected_ashtakavarga_benchmarks["moon_bav_total"]
 
         tolerance = 2
-        assert abs(total_bindus - expected_total) <= tolerance, \
+        assert abs(total_bindus - expected_total) <= tolerance, (
             f"Moon BAV total {total_bindus} should be close to {expected_total}"
+        )
 
     def test_bindu_count_consistency(self):
         """Test that bindu counts are consistent for same planetary configuration."""
         natal_chart = {
-            "Sun": 4, "Moon": 3, "Mars": 7, "Mercury": 2,
-            "Jupiter": 11, "Venus": 1, "Saturn": 9, "Lagna": 0
+            "Sun": 4,
+            "Moon": 3,
+            "Mars": 7,
+            "Mercury": 2,
+            "Jupiter": 11,
+            "Venus": 1,
+            "Saturn": 9,
+            "Lagna": 0,
         }
 
         # Calculate BAV multiple times - should be deterministic
@@ -123,8 +159,14 @@ class TestBhinnaAshtakavarga:
     def test_all_planets_bav_non_empty(self):
         """Verify all planets have non-empty BAV charts."""
         natal_chart = {
-            "Sun": 4, "Moon": 3, "Mars": 0, "Mercury": 2,
-            "Jupiter": 8, "Venus": 6, "Saturn": 10, "Lagna": 5
+            "Sun": 4,
+            "Moon": 3,
+            "Mars": 0,
+            "Mercury": 2,
+            "Jupiter": 8,
+            "Venus": 6,
+            "Saturn": 10,
+            "Lagna": 5,
         }
 
         planets = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"]
@@ -145,8 +187,14 @@ class TestSarvashtakavarga:
     def test_calculate_ashtakavarga_structure(self):
         """Test basic structure of full Ashtakavarga calculation."""
         natal_chart = {
-            "Sun": 4, "Moon": 3, "Mars": 0, "Mercury": 2,
-            "Jupiter": 8, "Venus": 6, "Saturn": 10, "Lagna": 5
+            "Sun": 4,
+            "Moon": 3,
+            "Mars": 0,
+            "Mercury": 2,
+            "Jupiter": 8,
+            "Venus": 6,
+            "Saturn": 10,
+            "Lagna": 5,
         }
 
         result = calculate_ashtakavarga(natal_chart)
@@ -156,7 +204,15 @@ class TestSarvashtakavarga:
         assert "sav" in result
 
         # bhav should have all planets
-        assert set(result["bhav"].keys()) == {"Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"}
+        assert set(result["bhav"].keys()) == {
+            "Sun",
+            "Moon",
+            "Mars",
+            "Mercury",
+            "Jupiter",
+            "Venus",
+            "Saturn",
+        }
 
         # sav should have bindu counts for all signs
         assert len(result["sav"]) == 12
@@ -165,8 +221,14 @@ class TestSarvashtakavarga:
     def test_sarvashtakavarga_totals(self):
         """Test that SAV totals equal sum of individual BAVs."""
         natal_chart = {
-            "Sun": 4, "Moon": 3, "Mars": 0, "Mercury": 2,
-            "Jupiter": 8, "Venus": 6, "Saturn": 10, "Lagna": 5
+            "Sun": 4,
+            "Moon": 3,
+            "Mars": 0,
+            "Mercury": 2,
+            "Jupiter": 8,
+            "Venus": 6,
+            "Saturn": 10,
+            "Lagna": 5,
         }
 
         result = calculate_ashtakavarga(natal_chart)
@@ -174,7 +236,7 @@ class TestSarvashtakavarga:
         planets = ["Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"]
 
         # Calculate expected totals by summing individual BAVs
-        expected_sav = {sign: 0 for sign in ZODIAC_SIGNS}
+        expected_sav = dict.fromkeys(ZODIAC_SIGNS, 0)
         for planet in planets:
             bav = calculate_bhinna_ashtakavarga(planet, natal_chart, BENEFIC_HOUSES)
             for sign, bindus in bav.items():
@@ -188,8 +250,14 @@ class TestSarvashtakavarga:
     def test_sav_bindu_range(self):
         """Test that SAV bindu counts are in reasonable ranges."""
         natal_chart = {
-            "Sun": 0, "Moon": 1, "Mars": 2, "Mercury": 3,
-            "Jupiter": 4, "Venus": 5, "Saturn": 6, "Lagna": 7
+            "Sun": 0,
+            "Moon": 1,
+            "Mars": 2,
+            "Mercury": 3,
+            "Jupiter": 4,
+            "Venus": 5,
+            "Saturn": 6,
+            "Lagna": 7,
         }
 
         result = calculate_ashtakavarga(natal_chart)
@@ -197,7 +265,9 @@ class TestSarvashtakavarga:
         for sign, bindus in result["sav"].items():
             # Each sign should have reasonable bindu count
             # Range based on accumulated benefic houses across all planets/lagna
-            assert 15 <= bindus <= 40, f"SAV bindus for {sign}: {bindus} seems unreasonable"
+            assert 15 <= bindus <= 40, (
+                f"SAV bindus for {sign}: {bindus} seems unreasonable"
+            )
 
 
 class TestChartIntegration:
@@ -205,6 +275,7 @@ class TestChartIntegration:
 
     def test_create_natal_chart_sign_mapping(self):
         """Test sign mapping creation from D1 chart."""
+
         # Mock a simple D1 chart
         class MockPlanet:
             def __init__(self, name, sign):
@@ -244,12 +315,20 @@ class TestChartIntegration:
         # Should be able to calculate AV without errors
         ascendant_sign = chart.d1_chart.houses[0].sign
         av = calculate_ashtakavarga_for_chart(chart.d1_chart, ascendant_sign)
-        assert hasattr(av, 'bhav')
-        assert hasattr(av, 'sav')
+        assert hasattr(av, "bhav")
+        assert hasattr(av, "sav")
         # Verify SAV has all signs
         assert len(av.sav) == 12
         # Verify all planets have BAV charts
-        expected_planets = {"Sun", "Moon", "Mars", "Mercury", "Jupiter", "Venus", "Saturn"}
+        expected_planets = {
+            "Sun",
+            "Moon",
+            "Mars",
+            "Mercury",
+            "Jupiter",
+            "Venus",
+            "Saturn",
+        }
         assert set(av.bhav.keys()) == expected_planets
 
     def test_bindu_counts_numeric(self, sample_vedic_chart_delhi):
@@ -258,11 +337,11 @@ class TestChartIntegration:
         ascendant_sign = chart.d1_chart.houses[0].sign
         av = calculate_ashtakavarga_for_chart(chart.d1_chart, ascendant_sign)
         # Check SAV bindus
-        for sign, bindus in av.sav.items():
+        for _sign, bindus in av.sav.items():
             assert isinstance(bindus, int)
             assert bindus >= 0
         # Check individual BAV charts
-        for planet, bav in av.bhav.items():
-            for sign, bindus in bav.items():
+        for _planet, bav in av.bhav.items():
+            for _sign, bindus in bav.items():
                 assert isinstance(bindus, int)
                 assert bindus >= 0

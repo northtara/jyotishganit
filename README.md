@@ -15,7 +15,7 @@ jyotishganit is a comprehensive, high precision Python library that brings the a
 ## Key Features
 
 - **Astronomical Precision**: NASA JPL DE421 ephemeris data via Skyfield for research grade accuracy
-- **Complete Birth Charts**: Full D1-D60 divisional chart calculations following Vedic principles  
+- **Complete Birth Charts**: Full D1-D60 divisional chart calculations following Vedic principles
 - **Panchanga System**: Traditional five limb almanac with Tithi, Nakshatra, Yoga, Karana, Vaara
 - **Shadbala Calculations**: Six fold planetary strength analysis with detailed breakdowns
 - **Dasha Periods**: Vimshottari Dasha system with precise planetary periods. With more under development
@@ -36,7 +36,7 @@ from jyotishganit import calculate_birth_chart, get_birth_chart_json_string
 # Generate a complete Vedic birth chart
 chart = calculate_birth_chart(
     birth_date=datetime(1996, 7, 4, 9, 10, 0), # 4th July 1996 9:10 am
-    latitude=18.404,   # Karmala, India  
+    latitude=18.404,   # Karmala, India
     longitude=75.195,
     timezone_offset=5.5,  # IST
     name="Bhampu"
@@ -142,7 +142,7 @@ print(f"Strength in Rupas: {shadbala['Rupas']:.2f}")
 
 # Detailed breakdown
 print(f"Positional Strength: {shadbala['Sthanabala']:.2f}")
-print(f"Temporal Strength: {shadbala['Kaalabala']:.2f}")  
+print(f"Temporal Strength: {shadbala['Kaalabala']:.2f}")
 print(f"Directional Strength: {shadbala['Digbala']:.2f}")
 print(f"Motional Strength: {shadbala['Cheshtabala']:.2f}")
 print(f"Natural Strength: {shadbala['Naisargikabala']:.2f}")
@@ -170,7 +170,7 @@ sarva = chart.ashtakavarga.sav
 for sign, points in sarva.items():
     print(f"{sign}: {points} points")
 
-# Individual planet ashtakavarga (Bhinnashktakavarga)  
+# Individual planet ashtakavarga (Bhinnashktakavarga)
 sun_ak = chart.ashtakavarga.bhav['Sun']
 print(f"Sun's contribution to each sign: {sun_ak}")
 ```
@@ -202,8 +202,8 @@ print('\n\n'.join(['Mahadasha: %s\n  Start: %s\n  End:   %s' % (lord, md['start'
 **Expected output:**
 ```
 Mahadasha: Jupiter
-    Start: 2017-06-21 
-    End:   2033-06-22 
+    Start: 2017-06-21
+    End:   2033-06-22
 ```
 ## Planetary Dignities
 
@@ -218,7 +218,7 @@ Expected output:
 Mars dignities: PlanetDignities(dignity='neutral', planet_tattva='Fire', rashi_tattva='Earth', friendly_tattvas=['Air', 'Fire'])
 ```
 
-### Graha Drishti (Planetary Aspects)  
+### Graha Drishti (Planetary Aspects)
 Traditional Vedic aspectual relationships:
 ```python
 # Planets aspecting and aspected
@@ -228,7 +228,7 @@ jupiter = next(p for p in chart.d1_chart.planets if p.celestial_body == "Jupiter
 houses_aspected = [aspect['to_house'] for aspect in jupiter.aspects['gives'] if 'to_house' in aspect]
 print(f"Jupiter aspects houses: {houses_aspected}")
 
-# Planets aspecting Jupiter  
+# Planets aspecting Jupiter
 aspected_by = [aspect['from_planet'] for aspect in jupiter.aspects['receives']]
 print(f"Jupiter is aspected by: {aspected_by}")
 ```
@@ -247,17 +247,17 @@ Jupiter is aspected by: ['Mars', 'Saturn', 'Mercury', 'Sun']
 pip install jyotishganit
 ```
 
-#### Development Installation  
+#### Development Installation
 ```bash
 git clone https://github.com/northtara/jyotishganit.git
 cd jyotishganit
-pip install -e .
+uv sync --all-extras --locked
 ```
 
 ### Data Storage
 Ephemeris data is automatically stored in platform-appropriate locations:
 - **Windows**: `%LOCALAPPDATA%\jyotishganit\`
-- **macOS**: `~/Library/Application Support/jyotishganit/`  
+- **macOS**: `~/Library/Application Support/jyotishganit/`
 - **Linux**: `~/.local/share/jyotishganit/`
 
 ## Testing & Validation
@@ -266,21 +266,21 @@ jyotishganit includes comprehensive test suites ensuring calculation accuracy:
 
 ```bash
 # Run all tests
-python -m pytest tests/
+uv run --locked pytest tests/
 
-# Run specific test categories  
-python -m pytest tests/test_panchanga.py      # Panchanga calculations
-python -m pytest tests/test_strengths.py     # Shadbala calculations
-python -m pytest tests/test_birth_charts.py  # Complete chart generation
-python -m pytest tests/test_cross_platform.py # Platform compatibility
+# Run specific test categories
+uv run --locked pytest tests/test_panchanga.py      # Panchanga calculations
+uv run --locked pytest tests/test_strengths.py     # Shadbala calculations
+uv run --locked pytest tests/test_birth_charts.py  # Complete chart generation
 
 # Package validation
-python validate_package.py
+uv run --locked python -m build
+uv run --locked twine check dist/*
 ```
 
 ### Calculation Accuracy
 - **Planetary Positions**: Accurate to arc-seconds using JPL ephemeris
-- **Ayanamsa**: True Chitra Paksha based on Spica star position  
+- **Ayanamsa**: True Chitra Paksha based on Spica star position
 - **Traditional Methods**: Follows classical Vedic texts (Brihat Parashara Hora Shastra, etc.)
 - **Cross-Verification**: Calculations verified against established Jyotisha software
 
@@ -294,14 +294,14 @@ from jyotishganit import calculate_birth_chart, get_birth_chart_json, Person
 # Main calculation function
 chart = calculate_birth_chart(
     birth_date=datetime,     # Local birth time
-    latitude=float,          # Geographic latitude  
+    latitude=float,          # Geographic latitude
     longitude=float,         # Geographic longitude
     timezone_offset=float,   # Hours from UTC (e.g., 5.5 for IST)
     location_name=str,       # Optional location name
     name=str                 # Optional person name
 ) -> VedicBirthChart
 
-# JSON output functions  
+# JSON output functions
 json_dict = get_birth_chart_json(chart)           # -> Dict[str, Any]
 json_string = get_birth_chart_json_string(chart)  # -> str
 ```
@@ -313,7 +313,7 @@ The complete birth chart container with all astrological data:
 
 ```python
 chart.person            # Person: Birth details and location
-chart.ayanamsa          # Ayanamsa: Calculated ayanamsa value  
+chart.ayanamsa          # Ayanamsa: Calculated ayanamsa value
 chart.panchanga         # Panchanga: Five-limb almanac data
 chart.d1_chart          # RasiChart: Primary birth chart (D1)
 chart.divisional_charts # Dict[str, RasiChart]: D2-D60 charts
@@ -321,12 +321,12 @@ chart.ashtakavarga      # Dict: Ashtakavarga point system
 chart.dashas           # Dashas: Vimshottari dasha periods
 ```
 
-#### PlanetPosition  
+#### PlanetPosition
 Individual planetary data with comprehensive details:
 
 ```python
 planet.celestial_body   # str: Planet name
-planet.sign            # str: Zodiac sign 
+planet.sign            # str: Zodiac sign
 planet.sign_degrees    # float: Degrees within sign
 planet.nakshatra       # str: Lunar constellation
 planet.pada            # int: Nakshatra quarter (1-4)
@@ -342,19 +342,23 @@ planet.aspected_by     # List[str]: Planets aspecting this one
 We welcome contributions from the Vedic astrology and Python communities!
 
 ### Development Setup
+
+This project uses [uv](https://docs.astral.sh/uv/) for fast, reproducible dependency management. With [direnv](https://direnv.net/) and `.envrc`, the venv activates automatically when you `cd` into the repo.
+
 ```bash
 git clone https://github.com/northtara/jyotishganit.git
 cd jyotishganit
-pip install -r requirements-dev.txt
-pip install -e .
+uv sync --all-extras --locked  # creates .venv and installs locked dependencies
+direnv allow                  # if using direnv: auto-activate .venv on cd
 ```
 
 ### Running Tests
 ```bash
-pytest tests/                    # All tests
-python validate_package.py      # Package validation
-black jyotishganit/             # Code formatting
-mypy jyotishganit/              # Type checking  
+uv run --locked pytest tests/          # All tests
+uv run --locked ruff check .           # Lint
+uv run --locked ruff format --check .  # Format check
+uv run --locked mypy jyotishganit/     # Type checking
+uv run --locked pre-commit run --all-files
 ```
 
 ### Contribution Guidelines
@@ -378,10 +382,10 @@ mypy jyotishganit/              # Type checking
 | Aspect | Status |
 |--------|---------|
 | **Stability** | ✅ Production Ready |
-| **Testing** | ✅ Comprehensive Test Suite |  
+| **Testing** | ✅ Comprehensive Test Suite |
 | **Documentation** | ✅ Complete API Documentation |
 | **Cross-Platform** | ✅ Windows, macOS, Linux |
-| **Python Versions** | ✅ 3.8, 3.9, 3.10, 3.11, 3.12 |
+| **Python Versions** | ✅ 3.10, 3.11, 3.12, 3.13 |
 | **CI/CD** | ✅ GitHub Actions |
 | **Package Quality** | ✅ PyPI Best Practices |
 
