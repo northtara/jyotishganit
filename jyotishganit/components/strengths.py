@@ -636,21 +636,26 @@ def compute_kaalabala(chart: RasiChart, person: Person) -> None:
 
 
 def compute_nathonnatabala(chart: RasiChart, person: Person) -> None:
-    from jyotishganit.core.astronomical import get_sunrise_sunset
+    from jyotishganit.core.astronomical import is_birth_daytime
 
-    sunrise, sunset = get_sunrise_sunset(person)
     birth_hour = (
         person.birth_datetime.hour
         + person.birth_datetime.minute / 60
         + person.birth_datetime.second / 3600
     )
-    is_day_birth = sunrise <= birth_hour < sunset
+    is_day_birth = is_birth_daytime(person)
 
     time_from_midpoint = (
         abs(birth_hour - 12)
         if is_day_birth
         else abs(birth_hour - 24 if birth_hour > 12 else birth_hour)
     )
+    # Natonnata runs 0 to 60. `(6 - t) * 10` assumes t never exceeds six hours,
+    # which assumes a twelve-hour day: a night birth at 06:30 in a Delhi winter
+    # is more than six hours from midnight and scores 65, and a polar-night birth
+    # at 11:00 scores 110. Clamping bounds the scale and leaves untouched every
+    # birth that was already on it.
+    time_from_midpoint = min(time_from_midpoint, 6.0)
     base_bala = (6 - time_from_midpoint) * 10
     for planet in chart.planets:
         if planet.celestial_body in NAISARGIKA_VALUES:
@@ -696,7 +701,7 @@ def compute_pakshabala(chart: RasiChart) -> None:
 
 
 def compute_tribhagabala(chart: RasiChart, person: Person) -> None:
-    from jyotishganit.core.astronomical import get_sunrise_sunset
+    from jyotishganit.core.astronomical import get_sunrise_sunset, is_birth_daytime
 
     sunrise, sunset = get_sunrise_sunset(person)
     birth_hour = (
@@ -704,9 +709,15 @@ def compute_tribhagabala(chart: RasiChart, person: Person) -> None:
         + person.birth_datetime.minute / 60
         + person.birth_datetime.second / 3600
     )
-    is_day_birth = sunrise <= birth_hour < sunset
+    is_day_birth = is_birth_daytime(person)
 
-    day_duration = sunset - sunrise
+    if sunrise == sunset:
+        # Polar: the Sun does not rise or does not set, so sunrise and sunset
+        # coincide at a culmination and the day is either the whole 24 hours or
+        # none of it.
+        day_duration = 24.0 if is_day_birth else 0.0
+    else:
+        day_duration = sunset - sunrise
     night_duration = 24 - day_duration
 
     part_duration = day_duration / 3 if is_day_birth else night_duration / 3
