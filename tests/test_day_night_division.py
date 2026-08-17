@@ -14,7 +14,7 @@ wrong answer:
    hours from noon or midnight — a pre-dawn winter birth at any latitude.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -95,7 +95,49 @@ def test_a_single_polar_transition_event_is_preserved():
 
     assert midnight_events == noon_events
     assert midnight_events[0] == pytest.approx(1.49, abs=0.05)
-    assert midnight_events[1] == 24.0
+    assert midnight_events[1] == pytest.approx(24.11, abs=0.05)
+
+
+def test_sunset_before_sunrise_is_paired_across_midnight():
+    """A civil day's event order must not produce a negative duration."""
+    person = _person(datetime(1988, 5, 17, 12, 0), 69.6492, 18.9553, 2.0)
+    sunrise, sunset = get_sunrise_sunset(person)
+
+    assert sunrise == pytest.approx(1.23, abs=0.05)
+    assert sunset > 24.0
+    assert sunrise < sunset <= sunrise + 24.0
+
+    chart = calculate_birth_chart(
+        person.birth_datetime,
+        person.latitude,
+        person.longitude,
+        timezone_offset=person.timezone_offset,
+    )
+    assert len(chart.d1_chart.houses) == 12
+
+
+@pytest.mark.parametrize("month,day", [(5, 17), (7, 26), (7, 27)])
+def test_multi_event_polar_dates_produce_a_chart(month, day):
+    chart = calculate_birth_chart(
+        datetime(1988, month, day, 12, 0),
+        69.6492,
+        18.9553,
+        timezone_offset=2.0,
+    )
+
+    assert len(chart.d1_chart.houses) == 12
+
+
+def test_aware_local_datetime_matches_naive_local_datetime():
+    aware = _person(
+        datetime(1995, 8, 20, 14, 45, tzinfo=timezone(timedelta(hours=5.5))),
+        28.6139,
+        77.2090,
+        5.5,
+    )
+
+    assert get_sunrise_sunset(aware) == pytest.approx(get_sunrise_sunset(DELHI))
+    assert is_birth_daytime(aware) is is_birth_daytime(DELHI)
 
 
 def test_daytime_uses_the_same_horizon_as_sunrise_and_sunset():
@@ -118,6 +160,65 @@ def test_daytime_uses_the_same_horizon_as_sunrise_and_sunset():
     assert sun_altitude_degrees(before_sunset) < 0.0
     assert is_birth_daytime(after_sunrise) is True
     assert is_birth_daytime(before_sunset) is True
+
+
+def test_polar_day_tribhaga_wraps_before_lower_culmination():
+    person = _person(datetime(1988, 6, 21, 0, 30), 69.6492, 18.9553, 2.0)
+    chart = calculate_birth_chart(
+        person.birth_datetime,
+        person.latitude,
+        person.longitude,
+        timezone_offset=person.timezone_offset,
+    )
+    winners = {
+        planet.celestial_body
+        for planet in chart.d1_chart.planets
+        if (planet.shadbala or {}).get("Kaalabala", {}).get("Tribhagabala") == 60
+    }
+
+    assert "Saturn" in winners
+    assert "Sun" not in winners
+
+
+@pytest.mark.parametrize("event_name", ["sunrise", "sunset"])
+def test_natonnata_is_continuous_across_solar_events(event_name):
+    sunrise, sunset = get_sunrise_sunset(DELHI)
+    event_hour = sunrise if event_name == "sunrise" else sunset
+
+    values = []
+    for seconds in (-1, 1):
+        when = datetime(1995, 8, 20) + timedelta(hours=event_hour, seconds=seconds)
+        chart = calculate_birth_chart(
+            when, DELHI.latitude, DELHI.longitude, timezone_offset=5.5
+        )
+        sun = next(
+            planet
+            for planet in chart.d1_chart.planets
+            if planet.celestial_body == "Sun"
+        )
+        values.append(sun.shadbala["Kaalabala"]["Natonnatabala"])
+
+    assert abs(values[1] - values[0]) < 0.01
+
+
+@pytest.mark.parametrize(
+    ("hour", "day_bala"), [(0, 0.0), (6, 30.0), (12, 60.0), (18, 30.0)]
+)
+def test_natonnata_interpolates_from_midnight_to_noon(hour, day_bala):
+    chart = calculate_birth_chart(
+        datetime(1995, 8, 20, hour, 0),
+        DELHI.latitude,
+        DELHI.longitude,
+        timezone_offset=DELHI.timezone_offset,
+    )
+    values = {
+        planet.celestial_body: planet.shadbala["Kaalabala"]["Natonnatabala"]
+        for planet in chart.d1_chart.planets
+        if planet.celestial_body in {"Sun", "Moon"}
+    }
+
+    assert values["Sun"] == day_bala
+    assert values["Moon"] == 60.0 - day_bala
 
 
 @pytest.mark.parametrize(
