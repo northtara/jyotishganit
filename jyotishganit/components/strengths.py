@@ -636,34 +636,30 @@ def compute_kaalabala(chart: RasiChart, person: Person) -> None:
 
 
 def compute_nathonnatabala(chart: RasiChart, person: Person) -> None:
-    from jyotishganit.core.astronomical import get_sunrise_sunset
-
-    sunrise, sunset = get_sunrise_sunset(person)
     birth_hour = (
         person.birth_datetime.hour
         + person.birth_datetime.minute / 60
         + person.birth_datetime.second / 3600
     )
-    is_day_birth = sunrise <= birth_hour < sunset
-
-    time_from_midpoint = (
-        abs(birth_hour - 12)
-        if is_day_birth
-        else abs(birth_hour - 24 if birth_hour > 12 else birth_hour)
-    )
-    base_bala = (6 - time_from_midpoint) * 10
+    # Natonnata is a continuous interpolation from midnight to midday and back.
+    # Day-strong planets gain five shashtiamsas per hour from 0 at midnight to
+    # 60 at noon; night-strong planets receive the complement.  Sunrise and
+    # sunset do not form boundaries in this calculation.
+    hours_from_midnight = min(birth_hour, 24.0 - birth_hour)
+    day_bala = hours_from_midnight * 5.0
+    night_bala = 60.0 - day_bala
     for planet in chart.planets:
         if planet.celestial_body in NAISARGIKA_VALUES:
             bala = 0.0
             if planet.celestial_body == "Mercury":
                 bala = 60.0
             elif planet.celestial_body in ["Sun", "Jupiter", "Venus"]:
-                bala = base_bala if is_day_birth else 60 - base_bala
+                bala = day_bala
             elif planet.celestial_body in ["Moon", "Mars", "Saturn"]:
-                bala = 60 - base_bala if is_day_birth else base_bala
+                bala = night_bala
             if "Kaalabala" not in planet.shadbala:
                 planet.shadbala["Kaalabala"] = {}
-            planet.shadbala["Kaalabala"]["Natonnatabala"] = round(max(0, bala), 3)
+            planet.shadbala["Kaalabala"]["Natonnatabala"] = round(bala, 3)
 
 
 def compute_pakshabala(chart: RasiChart) -> None:
@@ -696,23 +692,16 @@ def compute_pakshabala(chart: RasiChart) -> None:
 
 
 def compute_tribhagabala(chart: RasiChart, person: Person) -> None:
-    from jyotishganit.core.astronomical import get_sunrise_sunset
+    from jyotishganit.core.astronomical import get_day_night_period
 
-    sunrise, sunset = get_sunrise_sunset(person)
     birth_hour = (
         person.birth_datetime.hour
         + person.birth_datetime.minute / 60
         + person.birth_datetime.second / 3600
     )
-    is_day_birth = sunrise <= birth_hour < sunset
-
-    day_duration = sunset - sunrise
-    night_duration = 24 - day_duration
-
-    part_duration = day_duration / 3 if is_day_birth else night_duration / 3
-    birth_time_from_event = (
-        birth_hour - sunrise if is_day_birth else (birth_hour - sunset + 24) % 24
-    )
+    is_day_birth, period_start, period_duration = get_day_night_period(person)
+    part_duration = period_duration / 3.0
+    birth_time_from_event = (birth_hour - period_start) % 24.0
     part_index = min(2, int(birth_time_from_event / part_duration))  # Clamp to 0-2
 
     ruler = (

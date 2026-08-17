@@ -8,7 +8,7 @@ Implements True Chitra Paksha Ayanamsa for Vedic charts.
 import math
 import os
 import platform
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import cache
 
 from skyfield import almanac
@@ -560,58 +560,138 @@ def get_planet_declination(planet_name: str, t) -> float:
         return 0.0
 
 
+def _local_hour(event_utc: datetime, person: Person) -> float:
+    """A UTC instant expressed as hours after the birth date's local midnight.
+
+    Subtracting two datetimes handles the day rollover in both directions. The
+    previous arithmetic added the offset to a bare UTC hour and wrapped only the
+    `>= 24` case, so an event that fell on the next UTC day came back negative.
+    """
+    local = event_utc.replace(tzinfo=None) + timedelta(
+        hours=person.timezone_offset or 0
+    )
+    local_midnight = person.birth_datetime.replace(
+        tzinfo=None, hour=0, minute=0, second=0, microsecond=0
+    )
+    return (local - local_midnight).total_seconds() / 3600.0
+
+
+def _local_midnight_utc(person: Person) -> datetime:
+    """The birth date's local midnight, as a UTC datetime."""
+    local_midnight = person.birth_datetime.replace(
+        tzinfo=None, hour=0, minute=0, second=0, microsecond=0
+    )
+    return local_midnight - timedelta(hours=person.timezone_offset or 0)
+
+
+def _birth_utc(person: Person) -> datetime:
+    """Return the local wall-clock birth time converted to naive UTC."""
+    local = person.birth_datetime.replace(tzinfo=None)
+    return local - timedelta(hours=person.timezone_offset or 0)
+
+
+def sun_altitude_degrees(person: Person) -> float:
+    """Apparent altitude of the Sun at the birth instant, in degrees.
+
+    Positive means the Sun's centre is geometrically above the horizon.  The
+    standard sunrise and sunset threshold is lower, at -0.8333 degrees, to
+    account for the solar radius and average atmospheric refraction.
+    """
+    ts = get_timescale()
+    eph = get_ephemeris()
+    utc = _birth_utc(person)
+    t = ts.utc(utc.year, utc.month, utc.day, utc.hour, utc.minute, utc.second)
+    observer = eph["earth"] + wgs84.latlon(person.latitude, person.longitude)
+    altitude, _, _ = observer.at(t).observe(eph["sun"]).apparent().altaz()
+    return float(altitude.degrees)
+
+
+def _solar_culmination(person: Person, upper: bool) -> float:
+    """Local hour of the Sun's upper (noon) or lower (midnight) culmination.
+
+    Used only for the polar cases below. Searched over the local day with a
+    margin either side, taking the culmination nearest the middle of that day.
+    """
+    ts = get_timescale()
+    eph = get_ephemeris()
+    start = _local_midnight_utc(person)
+    t0 = ts.from_datetime(start.replace(tzinfo=timezone.utc) - timedelta(hours=6))
+    t1 = ts.from_datetime(start.replace(tzinfo=timezone.utc) + timedelta(hours=30))
+    location = wgs84.latlon(person.latitude, person.longitude)
+    times, kinds = almanac.find_discrete(
+        t0, t1, almanac.meridian_transits(eph, eph["sun"], location)
+    )
+    wanted = 1 if upper else 0
+    hours = [
+        _local_hour(times[i].utc_datetime(), person)
+        for i, kind in enumerate(kinds)
+        if int(kind) == wanted
+    ]
+    if not hours:
+        return 12.0 if upper else 0.0
+    return min(hours, key=lambda h: abs(h - 12.0))
+
+
+def _solar_events(person: Person) -> list[tuple[float, int]]:
+    """Return nearby solar horizon crossings as local hours.
+
+    The window extends beyond the birth's civil day so that a sunrise or sunset
+    just across midnight can be paired with the event on the birth date.  A
+    two-day margin also supplies the transitions bracketing ordinary births,
+    while truly polar periods still contain no crossings and use a culmination
+    limit below.
+    """
+    ts = get_timescale()
+    eph = get_ephemeris()
+    location = wgs84.latlon(person.latitude, person.longitude)
+    start = _local_midnight_utc(person).replace(tzinfo=timezone.utc)
+    t0 = ts.from_datetime(start - timedelta(days=2))
+    t1 = ts.from_datetime(start + timedelta(days=3))
+    times, states = almanac.find_discrete(t0, t1, almanac.sunrise_sunset(eph, location))
+    return [
+        (_local_hour(time.utc_datetime(), person), int(state))
+        for time, state in zip(times, states, strict=True)
+    ]
+
+
 def get_sunrise_sunset(person: Person) -> tuple[float, float]:
-    """Get sunrise and sunset times from midnight in hours."""
+    """Sunrise and sunset as hours after the birth date's local midnight.
+
+    Always returns two floats. Inside the polar circles the Sun does not rise in
+    local winter and does not set in local summer, and the almanac correctly
+    reports no event; both values then collapse onto the culmination the ordinary
+    definition converges on. As the day lengthens toward midnight sun, sunrise
+    moves earlier and sunset later until they meet at the *lower* culmination; as
+    it shortens toward polar night, they meet at the *upper*. Callers that need
+    the length of the day should treat `sunrise == sunset` as the degenerate case
+    and take the day as 24 hours or as none according to `is_birth_daytime`.
+    On a transition date containing only one real event, the search extends into
+    adjacent dates to preserve and pair real crossings.  If the polar season has
+    already begun, the open interval uses its 24-hour limiting length.  A
+    returned event can therefore be below 0 or above 24 hours when the interval
+    crosses the birth date's local midnight.
+    """
     try:
-        location = wgs84.latlon(person.latitude, person.longitude)
-        skyfield_time_from_datetime(person.birth_datetime, person.timezone_offset or 0)
+        events = _solar_events(person)
+        sunrises = [hour for hour, state in events if state == 1]
+        sunsets = [hour for hour, state in events if state == 0]
+        civil_sunrises = [hour for hour in sunrises if 0.0 <= hour < 24.0]
+        civil_sunsets = [hour for hour in sunsets if 0.0 <= hour < 24.0]
 
-        # Get sunrise/sunset around birth date
-        ts = get_timescale()
-        eph = get_ephemeris()
-        t0 = ts.utc(
-            person.birth_datetime.year,
-            person.birth_datetime.month,
-            person.birth_datetime.day,
-            0,
-        )
-        t1 = ts.utc(
-            person.birth_datetime.year,
-            person.birth_datetime.month,
-            person.birth_datetime.day + 1,
-            0,
-        )
+        if civil_sunrises:
+            sunrise = civil_sunrises[0]
+            later_sunsets = [hour for hour in sunsets if hour > sunrise]
+            sunset = later_sunsets[0] if later_sunsets else sunrise + 24.0
+            return sunrise, min(sunset, sunrise + 24.0)
 
-        f = almanac.sunrise_sunset(eph, location)
-        times, events = almanac.find_discrete(t0, t1, f)
+        if civil_sunsets:
+            sunset = civil_sunsets[0]
+            earlier_sunrises = [hour for hour in sunrises if hour < sunset]
+            sunrise = earlier_sunrises[-1] if earlier_sunrises else sunset - 24.0
+            return max(sunrise, sunset - 24.0), sunset
 
-        sunrise = None
-        sunset = None
-        # Calculate reference point: local midnight converted to UTC
-        local_midnight = person.birth_datetime.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        local_midnight - timedelta(hours=person.timezone_offset or 0)
-
-        for i, event in enumerate(events):
-            event_utc = times[i].utc_datetime()
-            local_hour = (
-                event_utc.hour
-                + event_utc.minute / 60.0
-                + event_utc.second / 3600.0
-                + (person.timezone_offset or 0)
-            )
-
-            # Handle day rollover - if local hour >= 24, subtract 24
-            if local_hour >= 24:
-                local_hour -= 24
-
-            if event == 1:  # sunrise
-                sunrise = local_hour
-            elif event == 0:  # sunset
-                sunset = local_hour
-
-        return sunrise, sunset
+        anchor = _solar_culmination(person, upper=not is_birth_daytime(person))
+        return anchor, anchor
 
     except Exception as e:
         print(f"Error calculating sunrise/sunset: {e}")
@@ -620,10 +700,57 @@ def get_sunrise_sunset(person: Person) -> tuple[float, float]:
 
 
 def is_birth_daytime(person: Person) -> bool:
-    """Check if birth is during day."""
-    sunrise, sunset = get_sunrise_sunset(person)
-    birth_hour = person.birth_datetime.hour + person.birth_datetime.minute / 60.0
-    return sunrise < birth_hour < sunset
+    """Check if birth is during day.
+
+    Use the same USNO definition as Skyfield's sunrise and sunset calculation:
+    the Sun is up once its apparent centre reaches 0.8333 degrees below the
+    horizon, accounting for its apparent radius and average refraction.  Asking
+    Skyfield's predicate directly keeps this classification aligned with the
+    events and also works inside the polar circles.
+    """
+    ts = get_timescale()
+    eph = get_ephemeris()
+    utc = _birth_utc(person)
+    t = ts.utc(utc.year, utc.month, utc.day, utc.hour, utc.minute, utc.second)
+    location = wgs84.latlon(person.latitude, person.longitude)
+    return bool(almanac.sunrise_sunset(eph, location)(t))
+
+
+def get_day_night_period(person: Person) -> tuple[bool, float, float]:
+    """Return whether the birth is daytime, the period start, and its duration.
+
+    Nearby real horizon crossings bracket ordinary and polar-transition births.
+    During continuous polar day or night, a 24-hour limiting period begins at
+    the corresponding solar culmination.
+    """
+    is_day = is_birth_daytime(person)
+    birth_hour = (
+        person.birth_datetime.hour
+        + person.birth_datetime.minute / 60.0
+        + person.birth_datetime.second / 3600.0
+    )
+    events = _solar_events(person)
+    start_state = 1 if is_day else 0
+    end_state = 0 if is_day else 1
+    starts = [
+        hour for hour, state in events if state == start_state and hour <= birth_hour
+    ]
+    ends = [hour for hour, state in events if state == end_state and hour > birth_hour]
+
+    if starts and ends:
+        start = starts[-1]
+        duration = min(24.0, ends[0] - start)
+        if duration > 0.0:
+            return is_day, start, duration
+
+    if starts:
+        return is_day, starts[-1], 24.0
+
+    if ends:
+        return is_day, ends[0] - 24.0, 24.0
+
+    anchor = _solar_culmination(person, upper=not is_day)
+    return is_day, anchor, 24.0
 
 
 def get_house_position(planet_lon: float, asc_lon: float) -> int:
