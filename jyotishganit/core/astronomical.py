@@ -637,6 +637,8 @@ def get_sunrise_sunset(person: Person) -> tuple[float, float]:
     it shortens toward polar night, they meet at the *upper*. Callers that need
     the length of the day should treat `sunrise == sunset` as the degenerate case
     and take the day as 24 hours or as none according to `is_birth_daytime`.
+    On a transition date containing only one real event, that event is preserved
+    and local midnight bounds the event-free portion of the civil day.
     """
     try:
         location = wgs84.latlon(person.latitude, person.longitude)
@@ -662,11 +664,19 @@ def get_sunrise_sunset(person: Person) -> tuple[float, float]:
             elif event == 0 and sunset is None:  # sunset
                 sunset = local_hour
 
-        if sunrise is None or sunset is None:
-            anchor = _solar_culmination(
-                person, upper=sun_altitude_degrees(person) <= 0.0
-            )
+        if sunrise is None and sunset is None:
+            anchor = _solar_culmination(person, upper=not is_birth_daytime(person))
             return anchor, anchor
+
+        # At the edge of a polar season a local civil day can contain exactly
+        # one real event.  Preserve it instead of treating the entire date as
+        # polar.  Midnight is the boundary of the event-free part of that civil
+        # day, keeping the returned interval stable for every birth time on the
+        # same date and allowing callers to divide both portions safely.
+        if sunrise is None:
+            sunrise = 0.0
+        if sunset is None:
+            sunset = 24.0
 
         return sunrise, sunset
 
@@ -679,11 +689,18 @@ def get_sunrise_sunset(person: Person) -> tuple[float, float]:
 def is_birth_daytime(person: Person) -> bool:
     """Check if birth is during day.
 
-    Taken from the Sun's altitude rather than by bracketing the birth hour
-    between sunrise and sunset: the two agree wherever both are defined, and only
-    the altitude is defined inside the polar circles.
+    Use the same USNO definition as Skyfield's sunrise and sunset calculation:
+    the Sun is up once its apparent centre reaches 0.8333 degrees below the
+    horizon, accounting for its apparent radius and average refraction.  Asking
+    Skyfield's predicate directly keeps this classification aligned with the
+    events and also works inside the polar circles.
     """
-    return sun_altitude_degrees(person) > 0.0
+    ts = get_timescale()
+    eph = get_ephemeris()
+    utc = person.birth_datetime - timedelta(hours=person.timezone_offset or 0)
+    t = ts.utc(utc.year, utc.month, utc.day, utc.hour, utc.minute, utc.second)
+    location = wgs84.latlon(person.latitude, person.longitude)
+    return bool(almanac.sunrise_sunset(eph, location)(t))
 
 
 def get_house_position(planet_lon: float, asc_lon: float) -> int:

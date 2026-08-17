@@ -14,7 +14,7 @@ wrong answer:
    hours from noon or midnight — a pre-dawn winter birth at any latitude.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -38,6 +38,12 @@ NEW_YORK_NOON = _person(datetime(1990, 7, 4, 12, 0), 40.7128, -74.0060, -4.0)
 # Tromso, inside the Arctic circle, in each solstice season.
 TROMSO_POLAR_NIGHT = _person(datetime(1988, 12, 21, 11, 0), 69.6492, 18.9553, 1.0)
 TROMSO_MIDNIGHT_SUN = _person(datetime(1988, 6, 21, 11, 0), 69.6492, 18.9553, 2.0)
+# The first day of Tromso's midnight-sun season has one real sunrise but no
+# sunset within the local civil day.
+TROMSO_SUNRISE_ONLY = _person(datetime(1988, 5, 16, 12, 0), 69.6492, 18.9553, 2.0)
+TROMSO_BEFORE_LAST_SUNRISE = _person(
+    datetime(1988, 5, 16, 0, 30), 69.6492, 18.9553, 2.0
+)
 # An ordinary mid-latitude case, unaffected by any of the corrections.
 DELHI = _person(datetime(1995, 8, 20, 14, 45), 28.6139, 77.2090, 5.5)
 # Also ordinary, and also mid-latitude: a winter birth before sunrise is more
@@ -79,9 +85,49 @@ def test_midnight_sun_collapses_them_onto_lower_culmination():
     assert sun_altitude_degrees(TROMSO_MIDNIGHT_SUN) > 0
 
 
+def test_a_single_polar_transition_event_is_preserved():
+    """A one-event date is not the same as a fully polar date."""
+    at_midnight = _person(datetime(1988, 5, 16, 0, 0), 69.6492, 18.9553, 2.0)
+    at_noon = TROMSO_SUNRISE_ONLY
+
+    midnight_events = get_sunrise_sunset(at_midnight)
+    noon_events = get_sunrise_sunset(at_noon)
+
+    assert midnight_events == noon_events
+    assert midnight_events[0] == pytest.approx(1.49, abs=0.05)
+    assert midnight_events[1] == 24.0
+
+
+def test_daytime_uses_the_same_horizon_as_sunrise_and_sunset():
+    """The solar disc is visible before its centre reaches zero altitude."""
+    sunrise, sunset = get_sunrise_sunset(DELHI)
+    after_sunrise = _person(
+        datetime(1995, 8, 20) + timedelta(hours=sunrise, minutes=1),
+        28.6139,
+        77.2090,
+        5.5,
+    )
+    before_sunset = _person(
+        datetime(1995, 8, 20) + timedelta(hours=sunset, minutes=-1),
+        28.6139,
+        77.2090,
+        5.5,
+    )
+
+    assert sun_altitude_degrees(after_sunrise) < 0.0
+    assert sun_altitude_degrees(before_sunset) < 0.0
+    assert is_birth_daytime(after_sunrise) is True
+    assert is_birth_daytime(before_sunset) is True
+
+
 @pytest.mark.parametrize(
     ("label", "person"),
-    [("polar night", TROMSO_POLAR_NIGHT), ("midnight sun", TROMSO_MIDNIGHT_SUN)],
+    [
+        ("polar night", TROMSO_POLAR_NIGHT),
+        ("midnight sun", TROMSO_MIDNIGHT_SUN),
+        ("before last sunrise", TROMSO_BEFORE_LAST_SUNRISE),
+        ("after last sunrise", TROMSO_SUNRISE_ONLY),
+    ],
 )
 def test_a_polar_birth_produces_a_chart(label, person):
     """This used to raise TypeError and take the whole chart with it."""
@@ -127,13 +173,8 @@ def test_natonnata_bala_stays_on_its_scale(person):
 
 
 @pytest.mark.parametrize("hour", [0, 3, 6, 9, 12, 15, 18, 21])
-def test_altitude_and_the_sunrise_window_agree_where_both_are_defined(hour):
-    """The altitude test is the same test, generalised — not a different one.
-
-    Sunrise and sunset are the zero crossings of the altitude, so at a latitude
-    where they exist the two must agree at every hour. If they did not, moving
-    `is_birth_daytime` onto the altitude would reclassify ordinary births.
-    """
+def test_day_state_and_the_sunrise_window_agree_where_both_are_defined(hour):
+    """The direct day-state predicate agrees with the event window."""
     person = _person(datetime(1995, 8, 20, hour, 0), 28.6139, 77.2090, 5.5)
     sunrise, sunset = get_sunrise_sunset(person)
 
