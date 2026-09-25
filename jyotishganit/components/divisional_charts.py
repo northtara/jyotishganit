@@ -274,29 +274,27 @@ def sapta_vimsamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float
 
 
 def trimsamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
-    """Compute Trimsamsa (D30) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
+    """Compute unequal Trimsamsa (D30), with upper-inclusive internal boundaries."""
     sign_num = signnum(sign)
     if sign_num % 2 == 0:  # Even sign
-        if longi_sec <= 5 * 3600:  # 0-5°
+        if degrees <= 5:  # 0-5°
             trim_sign_num = 2
-        elif longi_sec <= 12 * 3600:  # 5-12°
+        elif degrees <= 12:  # 5-12°
             trim_sign_num = 6
-        elif longi_sec <= 19 * 3600:  # 12-19°
-            trim_sign_num = 10
-        elif longi_sec <= 24 * 3600:  # 19-24°
+        elif degrees <= 20:  # 12-20°
             trim_sign_num = 12
-        else:  # 24-30°
+        elif degrees <= 25:  # 20-25°
+            trim_sign_num = 10
+        else:  # 25-30°
             trim_sign_num = 8
     else:  # Odd sign
-        if longi_sec <= 5 * 3600:  # 0-5°
+        if degrees <= 5:  # 0-5°
             trim_sign_num = 1
-        elif longi_sec <= 10 * 3600:  # 5-10°
+        elif degrees <= 10:  # 5-10°
             trim_sign_num = 11
-        elif longi_sec <= 18 * 3600:  # 10-18°
+        elif degrees <= 18:  # 10-18°
             trim_sign_num = 9
-        elif longi_sec <= 25 * 3600:  # 18-25°
+        elif degrees <= 25:  # 18-25°
             trim_sign_num = 3
         else:  # 25-30°
             trim_sign_num = 7
