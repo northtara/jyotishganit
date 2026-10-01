@@ -15,6 +15,7 @@ from skyfield import almanac
 from skyfield.api import Loader, Star, load, wgs84
 from skyfield.data import hipparcos
 from skyfield.framelib import ecliptic_frame
+from skyfield.nutationlib import iau2000a_radians, mean_obliquity
 
 from jyotishganit.core.constants import (
     PLANETARY_DIGNITIES,
@@ -124,35 +125,30 @@ def skyfield_time_from_datetime(birth_date: datetime, timezone_offset: float) ->
 
 
 def calculate_ayanamsa(t) -> float:
-    """Calculate True Chitra Paksha Ayanamsa at time t."""
+    """Anchor apparent Spica at 180° in the true ecliptic/equinox of date."""
     spica = _get_spica()
     eph = get_ephemeris()
     pos = eph["earth"].at(t).observe(spica).apparent()
-    _, lon, _ = pos.ecliptic_latlon()
-    ayanamsa = lon.degrees - 180.0
-    return ayanamsa if ayanamsa >= 0 else ayanamsa + 360
+    return (get_ecliptic_longitude(pos) - 180.0) % 360.0
 
 
 def tropical_to_sidereal(tropical_lon: float, ayanamsa: float) -> float:
     """Convert tropical to sidereal longitude."""
-    sidereal = tropical_lon - ayanamsa
-    return sidereal if sidereal >= 0 else sidereal + 360
+    return (tropical_lon - ayanamsa) % 360.0
 
 
 def calculate_ascendant(t, latitude: float, longitude: float, ayanamsa: float) -> float:
-    """Calculate sidereal ascendant using correct formula."""
+    """Calculate the eastern horizon's intersection with the ecliptic of date."""
     location = wgs84.latlon(latitude_degrees=latitude, longitude_degrees=longitude)
 
-    # Calculate Local Sidereal Time
-    # GMST = Greenwich Mean Sidereal Time in hours
-    gmst = t.gmst
-    lst_hours = gmst + location.longitude.hours
+    # Match Spica and the planets' true equinox of date, including nutation.
+    lst_hours = t.gast + location.longitude.hours
 
     # Convert LST to radians
     lst_rad = math.radians(lst_hours * 15)  # 15 degrees per hour
 
     # Get obliquity of the ecliptic
-    obliquity = calculate_obliquity(t)
+    obliquity = calculate_true_obliquity(t)
     obl_rad = math.radians(obliquity)
 
     # Get latitude in radians
@@ -179,10 +175,32 @@ def calculate_obliquity(t):
     return eps_arcsec / 3600.0
 
 
+def calculate_true_obliquity(t) -> float:
+    """True obliquity in degrees, using the same model as Skyfield's ecliptic frame.
+
+    Skyfield evaluates its mean obliquity at TDB and IAU 2000A nutation at TT.
+    Keep the older IAU 1980 mean-obliquity helper available separately.
+    """
+    _, delta_epsilon = iau2000a_radians(t)
+    return mean_obliquity(t.tdb) / 3600.0 + math.degrees(delta_epsilon)
+
+
 def get_ecliptic_longitude(position) -> float:
-    """Extract ecliptic longitude from Skyfield position."""
-    _, lon, _ = position.ecliptic_latlon()
+    """Longitude in the true ecliptic and equinox of the position's date."""
+    _, lon, _ = position.frame_latlon(ecliptic_frame)
     return lon.degrees
+
+
+def calculate_mean_node_longitude(t) -> float:
+    """Approximate mean ascending node in the true equinox of date, in degrees.
+
+    The existing linear model gives a mean-equinox-of-date longitude. Add
+    nutation in longitude to match the frame used for the ayanamsa. This changes
+    the coordinate frame, not the choice of mean rather than true lunar nodes.
+    """
+    T = (t.tt - 2451545.0) / 36525.0
+    delta_psi, _ = iau2000a_radians(t)
+    return (125.04452 - 1934.136261 * T + math.degrees(delta_psi)) % 360.0
 
 
 def get_motion_type(planet_name: str, t) -> str:
@@ -289,8 +307,7 @@ def calculate_planet_positions(
         positions.append(planet_pos)
 
     # 4. Calculate Rahu and Ketu (Mean Lunar Nodes)
-    T = (t.tt - 2451545.0) / 36525.0
-    rahu_tropical = (125.04452 - 1934.136261 * T) % 360
+    rahu_tropical = calculate_mean_node_longitude(t)
     rahu_sidereal = tropical_to_sidereal(rahu_tropical, ayanamsa)
     ketu_sidereal = (rahu_sidereal + 180) % 360
 
@@ -531,7 +548,7 @@ def get_planet_velocity(planet_name: str, t) -> float:
 
 
 def get_planet_declination(planet_name: str, t) -> float:
-    """Get declination of planet at time t."""
+    """Apparent declination relative to the true equator/equinox of date."""
     if planet_name in ["Rahu", "Ketu"]:
         # Lunar nodes are equatorial
         return 0.0
@@ -553,7 +570,7 @@ def get_planet_declination(planet_name: str, t) -> float:
         eph = get_ephemeris()
         body = eph[body_mapping[planet_name]]
         pos = eph["earth"].at(t).observe(body).apparent()
-        _, dec, _ = pos.radec()
+        _, dec, _ = pos.radec(epoch="date")
         return dec.degrees
     except Exception as e:
         print(f"Error calculating declination for {planet_name}: {e}")
@@ -806,10 +823,10 @@ def calculate_solar_ingress(solar_longitude: float, year: int) -> datetime:
         def sun_longitude_diff(t):
             """Calculate signed difference from target longitude."""
             pos = eph["earth"].at(t).observe(eph["sun"]).apparent()
-            _, lon, _ = pos.ecliptic_latlon()
+            longitude = get_ecliptic_longitude(pos)
 
             # Handle wraparound at 0/360
-            diff = lon.degrees - solar_longitude
+            diff = longitude - solar_longitude
             if diff > 180:
                 diff -= 360
             elif diff < -180:

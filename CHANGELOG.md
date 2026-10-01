@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-10-01
+
+### Fixed
+- Resolved the coordinate-frame mismatch reported in issue #12 by using the true ecliptic and equinox of date consistently for Spica, planetary longitudes, the ascendant, and mean lunar nodes.
+- Aligned ascendant sidereal time and obliquity with that frame, and corrected solar-ingress and planetary-declination calculations to use coordinates of date.
+- Normalized sidereal longitudes to the range [0, 360).
+
+### Added
+- Added 242 coordinate-frame regression cases, including independent reference snapshots and eastern-horizon geometry checks across 1900–2050.
+
+### Notes
+- True Chitra Paksha remains the ayanamsa, and Rahu/Ketu still use the existing approximate mean-node model. Chart results affected by the frame mismatch may change after upgrading.
+
 ## [0.1.4] - 2026-10-01
 
 ### Fixed
