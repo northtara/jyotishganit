@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-10-01
+
+### Fixed
+- Corrected unequal D30 intervals and sign mappings for even natal signs, preserving upper-inclusive internal boundaries.
+- Fixed day/night calculations for polar latitudes, solar events spanning UTC midnight, and Natonnata Bala scaling and continuity.
+
+### Changed
+- Updated packaging and development tooling, with Python 3.10 through 3.13 validation and a typed package marker.
+
 ## [0.1.3] - 2026-05-30
 
 ### Fixed
