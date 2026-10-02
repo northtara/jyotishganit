@@ -1,4 +1,4 @@
-"""D30 interval and chart-assembly regressions; no ephemeris required."""
+"""Divisional mapping and chart-assembly regressions; no ephemeris required."""
 
 from math import nextafter
 from types import SimpleNamespace
@@ -75,3 +75,71 @@ def test_d30_even_sign_regressions(degree, expected):
     assert len(chart.houses) == 12
     assert chart.houses[0].sign == expected
     assert chart.houses[0].occupants[0].sign == expected
+
+
+@pytest.mark.parametrize("sign_index", range(12))
+@pytest.mark.parametrize(
+    "degree", [0.0, nextafter(15.0, 0.0), 15.0, nextafter(30.0, 0.0)]
+)
+def test_d2_house_numbers_follow_divisional_ascendant(sign_index, degree):
+    from copy import deepcopy
+
+    sign = ZODIAC_SIGNS[sign_index]
+    # Sun/Moon Hora: the first half of an odd sign is Leo; reverse for even signs.
+    expected_ascendant = "Leo" if (sign_index % 2 == 0) == (degree < 15) else "Cancer"
+    expected_numbers = (
+        {"Cancer": 1, "Leo": 2}
+        if expected_ascendant == "Cancer"
+        else {"Cancer": 12, "Leo": 1}
+    )
+    d1 = SimpleNamespace(
+        houses=[SimpleNamespace(sign=sign, sign_degrees=degree)],
+        planets=[
+            SimpleNamespace(
+                celestial_body="Sun", sign="Aries", sign_degrees=0.0, house=3
+            ),
+            SimpleNamespace(
+                celestial_body="Moon", sign="Aries", sign_degrees=15.0, house=7
+            ),
+            SimpleNamespace(
+                celestial_body="Mars", sign="Taurus", sign_degrees=0.0, house=9
+            ),
+            SimpleNamespace(
+                celestial_body="Venus", sign="Taurus", sign_degrees=15.0, house=11
+            ),
+        ],
+    )
+    before = deepcopy(d1)
+    chart = compute_divisional_chart(d1, "D2")
+    assert chart.ascendant.sign == expected_ascendant
+    assert [(h.number, h.sign) for h in chart.houses] == [
+        (expected_numbers["Cancer"], "Cancer"),
+        (expected_numbers["Leo"], "Leo"),
+    ]
+    assert next(h.sign for h in chart.houses if h.number == 1) == chart.ascendant.sign
+    assert [(h.sign, h.lord) for h in chart.houses] == [
+        ("Cancer", "Moon"),
+        ("Leo", "Sun"),
+    ]
+    assert [h.d1_house_placement for h in chart.houses] == [
+        (3 - sign_index) % 12 + 1,
+        (4 - sign_index) % 12 + 1,
+    ]
+    assert chart.ascendant.d1_house_placement == (
+        (ZODIAC_SIGNS.index(expected_ascendant) - sign_index) % 12 + 1
+    )
+    assert [
+        (p.celestial_body, p.sign, p.d1_house_placement)
+        for h in chart.houses
+        for p in h.occupants
+    ] == [
+        ("Moon", "Cancer", 7),
+        ("Mars", "Cancer", 9),
+        ("Sun", "Leo", 3),
+        ("Venus", "Leo", 11),
+    ]
+    assert [(h["number"], h["sign"]) for h in chart.to_dict()["houses"]] == [
+        (expected_numbers["Cancer"], "Cancer"),
+        (expected_numbers["Leo"], "Leo"),
+    ]
+    assert d1 == before
