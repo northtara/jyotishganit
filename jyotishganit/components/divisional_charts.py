@@ -420,7 +420,7 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
     div_houses = []
     asc_sign_num = signnum(div_asc.sign)
 
-    # Special handling for D2 (hora chart) - only create houses in Leo and Cancer, with specific house numbers
+    # D2 retains only Cancer and Leo, numbered from its divisional ascendant.
     if chart_type == "D2":
         # Find which houses contain Leo and Cancer from ascendant
         leo_from_asc = None
@@ -433,11 +433,11 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
             elif house_sign == "Cancer":
                 cancer_from_asc = ((house_sign_num - asc_sign_d1_num) % 12) + 1
 
-        # Create house 12 as Cancer and house 1 as Leo (special D2 numbering)
+        # Keep Cancer/Leo output order; number each house relative to the D2 ascendant.
         if cancer_from_asc is not None:
             div_houses.append(
                 DivisionalHouse(
-                    number=12,  # House 12 is Cancer
+                    number=((signnum("Cancer") - asc_sign_num) % 12) + 1,
                     sign="Cancer",
                     lord=SIGN_LORDS["Cancer"],
                     d1_house_placement=cancer_from_asc,
@@ -447,7 +447,7 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
         if leo_from_asc is not None:
             div_houses.append(
                 DivisionalHouse(
-                    number=1,  # House 1 is Leo
+                    number=((signnum("Leo") - asc_sign_num) % 12) + 1,
                     sign="Leo",
                     lord=SIGN_LORDS["Leo"],
                     d1_house_placement=leo_from_asc,
