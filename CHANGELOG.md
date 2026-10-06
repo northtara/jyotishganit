@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-06
+
 ### Fixed
 - Fixed Cheshta Bala for Mars, Mercury, Jupiter, Venus and Saturn changing every minute (issue #16). Mean longitudes came from Skyfield osculating elements of the Earth-to-planet vector, which are not mean longitudes. They now come from Meeus' heliocentric mean elements (Table 31.a), converted to the chart's sidereal frame.
 - Averaged mean and true longitude along the shorter arc, so planets either side of 0° Aries no longer get a kendra off by up to 180°.
