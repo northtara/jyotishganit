@@ -639,23 +639,17 @@ KENDRA_BALA_SCORES = {
     12: 15,  # Apoklimas
 }
 
-# Mean geocentric velocities (degrees/day) for Chesta Bala reference
-MEAN_VELOCITIES = {
-    "Mars": 0.524,
-    "Mercury": 1.383,
-    "Jupiter": 0.083,
-    "Venus": 1.602,
-    "Saturn": 0.034,
-}
-
-# Mean Daily Motion for Cheshta Bala calculation (degrees/day)
-# As per classical astronomical texts (e.g., Surya Siddhanta)
-PLANET_MEAN_MOTION = {
-    "Mars": 0.5240,
-    "Mercury": 4.0923,
-    "Jupiter": 0.0831,
-    "Venus": 1.6021,
-    "Saturn": 0.0334,
+# Heliocentric mean longitudes for Cheshta Bala, mean equinox of date
+# (Meeus, Astronomical Algorithms, Table 31.a). Coefficients of
+# L = a0 + a1*T + a2*T^2 + a3*T^3 degrees, T in Julian centuries from J2000 TT.
+# The mean Sun is Earth's mean longitude + 180°.
+MEAN_LONGITUDE_TERMS = {
+    "Mercury": (252.250906, 149474.0722491, 0.00030350, 0.000000018),
+    "Venus": (181.979801, 58519.2130302, 0.00031014, 0.000000015),
+    "Earth": (100.466457, 36000.7698278, 0.00030322, 0.000000020),
+    "Mars": (355.433000, 19141.6964471, 0.00031052, 0.000000016),
+    "Jupiter": (34.351519, 3036.3027748, 0.00022330, 0.000000037),
+    "Saturn": (50.077444, 1223.5110686, 0.00051908, -0.000000030),
 }
 
 # --- STRENGTH CALCULATION CONSTANTS ---

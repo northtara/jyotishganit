@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fixed Cheshta Bala for Mars, Mercury, Jupiter, Venus and Saturn changing every minute (issue #16). Mean longitudes came from Skyfield osculating elements of the Earth-to-planet vector, which are not mean longitudes. They now come from Meeus' heliocentric mean elements (Table 31.a), converted to the chart's sidereal frame.
+- Averaged mean and true longitude along the shorter arc, so planets either side of 0° Aries no longer get a kendra off by up to 180°.
+- D2 house numbers are now counted from the D2 ascendant (issue #14). Charts with a Cancer D2 ascendant now number Cancer 1 and Leo 2 instead of 12 and 1.
+
+### Added
+- Added Cheshta Bala regressions: stability over minutes, the 0° Aries average, and B.V. Raman's and V.P. Jain's published examples.
+
+### Notes
+- Cheshta Bala values for these planets will change after upgrading. Results are within about 1.5 virupas of the published examples. Mercury is within about 4.5, because the books use older 1900-epoch constants for its Seeghrochcha.
+- Removed the unused `MEAN_VELOCITIES` and `PLANET_MEAN_MOTION` constants in favour of `MEAN_LONGITUDE_TERMS`.
+
 ## [0.1.5] - 2026-10-01
 
 ### Fixed

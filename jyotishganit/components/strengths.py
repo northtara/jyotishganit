@@ -8,7 +8,7 @@ import math
 
 # Use global Skyfield objects from core.astronomical
 from jyotishganit.core.astronomical import (
-    get_ephemeris,
+    calculate_ayanamsa,
     get_planet_declination,
     get_solar_ingress_weekday,
     skyfield_time_from_datetime,
@@ -26,11 +26,11 @@ from jyotishganit.core.constants import (
     KENDRA_BALA_SCORES,
     MALE_PLANETS_SHADBALA,
     MARS_SPECIAL_ASPECTS,
+    MEAN_LONGITUDE_TERMS,
     NAISARGIKA_VALUES,
     NATURAL_BENEFIC_SHADBALA,
     NATURAL_MALEFIC_SHADBALA,
     PLANET_INDEX_MAP,
-    PLANET_MEAN_MOTION,
     PLANETARY_DIGNITIES,
     PLANETARY_HOUR_SEQUENCE,
     PLANETARY_RELATIONS,
@@ -822,74 +822,20 @@ def compute_ayanabala(chart: RasiChart, person: Person) -> None:
             planet.shadbala["Kaalabala"]["Ayanabala"] = round(definite_ayana_bala, 3)
 
 
-# --- CHESHTABALA with Mean Longitude from Skyfield ---
+# --- CHESHTABALA ---
 
 
-def _get_mean_longitude_from_skyfield(planet_name: str, t) -> float:
-    """
-    Calculate mean longitude using Skyfield's osculating elements.
-    REFACTORED: Now uses globally loaded ephemeris for optimal performance.
-    Confirmed from Skyfield docs: elements.mean_longitude is an Angle object.
-    """
-    from skyfield.elementslib import osculating_elements_of
-
-    # Sun uses Earth's mean orbit
-    if planet_name == "Sun":
-        days_since_j2000 = t.tt - 2451545.0
-        L0 = 280.46646  # Mean longitude at J2000
-        mean_motion = 0.98564736  # degrees/day
-        return (L0 + mean_motion * days_since_j2000) % 360
-
-    body_mapping = {
-        "Mars": "mars",
-        "Mercury": "mercury",
-        "Jupiter": "jupiter barycenter",
-        "Venus": "venus",
-        "Saturn": "saturn barycenter",
-    }
-
-    if planet_name not in body_mapping:
-        return 0.0
-
-    # Check if Skyfield ephemeris is available
-    try:
-        eph = get_ephemeris()
-        body = eph[body_mapping[planet_name]]
-        # Get relative position from Earth
-        position = (body - eph["earth"]).at(t)
-        # Calculate osculating elements (geocentric)
-        elements = osculating_elements_of(position)
-        # Extract mean longitude (confirmed from Skyfield docs)
-        return elements.mean_longitude.degrees
-    except Exception as e:
-        print(f"Warning: Skyfield osculating elements failed for {planet_name}: {e}")
-        return _get_fallback_mean_longitude(planet_name, t)
-
-
-def _get_fallback_mean_longitude(planet_name: str, t) -> float:
-    """
-    Fallback approximation when Skyfield is unavailable.
-    REFACTORED: Extracted common fallback logic.
-    """
-    days_since_j2000 = t.tt - 2451545.0
-    epoch_longitudes = {
-        "Mars": 355.45,
-        "Mercury": 252.25,
-        "Jupiter": 34.35,
-        "Venus": 181.98,
-        "Saturn": 49.95,
-    }
-
-    mean_motion = PLANET_MEAN_MOTION.get(planet_name, 0.0)
-    epoch_lon = epoch_longitudes.get(planet_name, 0.0)
-
-    return (epoch_lon + mean_motion * days_since_j2000) % 360
+def _mean_longitude(body: str, T: float, ayanamsa: float) -> float:
+    """Sidereal heliocentric mean longitude; T in Julian centuries from J2000 TT."""
+    a0, a1, a2, a3 = MEAN_LONGITUDE_TERMS[body]
+    return normalize(a0 + a1 * T + a2 * T**2 + a3 * T**3 - ayanamsa)
 
 
 def compute_chestagbala(chart: RasiChart, person: Person) -> None:
     """
-    Computes Cheshta Bala (Motional Strength) using mean longitudes from Skyfield.
-    CORRECTED: Uses precise ephemeris calculations.
+    Computes Cheshta Bala (Motional Strength), BPHS 27.24-25:
+    Cheshta Kendra = Seeghrochcha - (mean + true longitude) / 2, reduced to
+    at most 180°, and Cheshta Bala = Cheshta Kendra / 3.
     """
     # Sun's Cheshta Bala is its Ayanabala
     sun = next((p for p in chart.planets if p.celestial_body == "Sun"), None)
@@ -905,42 +851,37 @@ def compute_chestagbala(chart: RasiChart, person: Person) -> None:
             "Pakshabala", 0
         )
 
-    # For other planets
+    # For other planets: mean longitudes in the same sidereal frame as the chart
     t = skyfield_time_from_datetime(person.birth_datetime, person.timezone_offset or 0)
-
-    # Get Sun's mean longitude for reference
-    sun_mean_long = _get_mean_longitude_from_skyfield("Sun", t)
+    T = (t.tt - 2451545.0) / 36525.0
+    ayanamsa = calculate_ayanamsa(t)
+    sun_mean_long = normalize(_mean_longitude("Earth", T, ayanamsa) + 180.0)
 
     for planet in chart.planets:
         planet_name = planet.celestial_body
-        if planet_name in PLANET_MEAN_MOTION:
-            # Get mean longitude using Skyfield
-            mean_long = _get_mean_longitude_from_skyfield(planet_name, t)
+        if planet_name in ("Mars", "Mercury", "Jupiter", "Venus", "Saturn"):
+            own_mean_long = _mean_longitude(planet_name, T, ayanamsa)
 
-            # Determine Seeghrochcha (apogee reference point)
-            if planet_name in ["Mercury", "Venus"]:
-                # Inferior planets: Seeghrochcha is their mean longitude
-                seegrocha = mean_long
+            if planet_name in ("Mercury", "Venus"):
+                # Inferior planets: mean longitude is the mean Sun and
+                # Seeghrochcha is the planet's own heliocentric mean longitude
                 mean_long = sun_mean_long
+                seegrocha = own_mean_long
             else:
-                # Superior planets: Seeghrochcha is Sun's mean longitude
+                # Superior planets: Seeghrochcha is the mean Sun
+                mean_long = own_mean_long
                 seegrocha = sun_mean_long
 
-            # Get true longitude
             true_long = planet_longitude_from_sign(planet.sign, planet.sign_degrees)
 
-            # Calculate average longitude
-            ave_long = 0.5 * (true_long + mean_long)
+            # Midpoint of mean and true longitude along the shorter arc
+            ave_long = mean_long + (((true_long - mean_long + 180) % 360) - 180) / 2
 
-            # Reduced Cheshta Kendra (classical formula)
-            reduced_chesta_kendra = abs(seegrocha - ave_long)
-            if reduced_chesta_kendra > 180:
-                reduced_chesta_kendra = 360 - reduced_chesta_kendra
-
-            # Cheshta Bala = Reduced Cheshta Kendra / 3
-            bala = reduced_chesta_kendra / 3.0
-
-            planet.shadbala["Cheshtabala"] = round(bala, 3)
+            # Reduced Cheshta Kendra: 0-180°, so Cheshta Bala is 0-60
+            reduced_chesta_kendra = angdiff(seegrocha, ave_long)
+            planet.shadbala["Cheshtabala"] = round(
+                float(reduced_chesta_kendra) / 3.0, 3
+            )
 
 
 def compute_yuddhabala(chart: RasiChart) -> None:

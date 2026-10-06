@@ -503,14 +503,9 @@ class TestKaalabala:
 class TestCheshtabala:
     """Test Cheshtabala (Motional Strength) calculations."""
 
-    @patch("jyotishganit.components.strengths._get_mean_longitude_from_skyfield")
-    @patch("jyotishganit.components.strengths.skyfield_time_from_datetime")
-    def test_compute_chestagbala(
-        self, mock_skyfield, mock_mean_long, mock_chart, mock_person
-    ):
+    @patch("jyotishganit.components.strengths.calculate_ayanamsa", return_value=24.0)
+    def test_compute_chestagbala(self, mock_ayanamsa, mock_chart, mock_person):
         """Test Cheshta Bala calculation."""
-        mock_skyfield.return_value = Mock()
-        mock_mean_long.return_value = 100.0
 
         compute_chestagbala(mock_chart, mock_person)
 
@@ -655,11 +650,18 @@ class TestDrikbala:
 class TestShadbala:
     """Test complete Shadbala calculations."""
 
+    @patch("jyotishganit.components.strengths.calculate_ayanamsa", return_value=24.0)
     @patch("jyotishganit.components.strengths.skyfield_time_from_datetime")
     @patch("jyotishganit.components.strengths.get_planet_declination")
     @patch("jyotishganit.core.astronomical.get_sunrise_sunset")
     def test_compute_shadbala(
-        self, mock_sunrise, mock_decl, mock_skyfield, mock_chart, mock_person
+        self,
+        mock_sunrise,
+        mock_decl,
+        mock_skyfield,
+        mock_ayanamsa,
+        mock_chart,
+        mock_person,
     ):
         """Test complete Shadbala calculation."""
         mock_sunrise.return_value = (6.0, 18.0)
@@ -802,11 +804,18 @@ class TestBhavaBala:
 class TestIntegration:
     """Integration tests for complete calculations."""
 
+    @patch("jyotishganit.components.strengths.calculate_ayanamsa", return_value=24.0)
     @patch("jyotishganit.components.strengths.skyfield_time_from_datetime")
     @patch("jyotishganit.components.strengths.get_planet_declination")
     @patch("jyotishganit.core.astronomical.get_sunrise_sunset")
     def test_calculate_all_strengths(
-        self, mock_sunrise, mock_decl, mock_skyfield, mock_chart, mock_person
+        self,
+        mock_sunrise,
+        mock_decl,
+        mock_skyfield,
+        mock_ayanamsa,
+        mock_chart,
+        mock_person,
     ):
         """Test complete strength calculation pipeline."""
         mock_sunrise.return_value = (6.0, 18.0)
