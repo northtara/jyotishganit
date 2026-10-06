@@ -422,35 +422,14 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
 
     # D2 retains only Cancer and Leo, numbered from its divisional ascendant.
     if chart_type == "D2":
-        # Find which houses contain Leo and Cancer from ascendant
-        leo_from_asc = None
-        cancer_from_asc = None
-        for house_offset in range(12):
-            house_sign_num = compute_nthsign(asc_sign_num, house_offset + 1)
-            house_sign = ZODIAC_SIGNS[house_sign_num - 1]
-            if house_sign == "Leo":
-                leo_from_asc = ((house_sign_num - asc_sign_d1_num) % 12) + 1
-            elif house_sign == "Cancer":
-                cancer_from_asc = ((house_sign_num - asc_sign_d1_num) % 12) + 1
-
-        # Keep Cancer/Leo output order; number each house relative to the D2 ascendant.
-        if cancer_from_asc is not None:
+        for house_sign in ("Cancer", "Leo"):
+            house_sign_num = signnum(house_sign)
             div_houses.append(
                 DivisionalHouse(
-                    number=((signnum("Cancer") - asc_sign_num) % 12) + 1,
-                    sign="Cancer",
-                    lord=SIGN_LORDS["Cancer"],
-                    d1_house_placement=cancer_from_asc,
-                )
-            )
-
-        if leo_from_asc is not None:
-            div_houses.append(
-                DivisionalHouse(
-                    number=((signnum("Leo") - asc_sign_num) % 12) + 1,
-                    sign="Leo",
-                    lord=SIGN_LORDS["Leo"],
-                    d1_house_placement=leo_from_asc,
+                    number=((house_sign_num - asc_sign_num) % 12) + 1,
+                    sign=house_sign,
+                    lord=SIGN_LORDS[house_sign],
+                    d1_house_placement=((house_sign_num - asc_sign_d1_num) % 12) + 1,
                 )
             )
     else:
@@ -474,10 +453,6 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
         p_sign = compute_divisional_position_for_type(
             planet.sign, planet.sign_degrees, chart_type
         )
-
-        # For D2, ensure planet sign is in allowed signs
-        if chart_type == "D2" and p_sign not in ["Leo", "Cancer"]:
-            p_sign = "Leo"  # Default fallback
 
         div_planet = DivisionalPlanetPosition(
             celestial_body=planet.celestial_body,
