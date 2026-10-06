@@ -1,5 +1,6 @@
 """Divisional mapping and chart-assembly regressions; no ephemeris required."""
 
+from fractions import Fraction
 from math import nextafter
 from types import SimpleNamespace
 
@@ -8,6 +9,7 @@ import pytest
 from jyotishganit.components.divisional_charts import (
     compute_divisional_chart,
     compute_divisional_position_for_type,
+    navamsa_from_long,
     trimsamsa_from_long,
 )
 from jyotishganit.core.constants import DIVISIONAL_CHARTS, SIGN_LORDS, ZODIAC_SIGNS
@@ -27,6 +29,58 @@ EVEN = [
     (25, "Capricorn"),
     (30, "Scorpio"),
 ]
+
+
+@pytest.mark.parametrize("sign_index", range(12))
+def test_d9_exact_input_boundaries(sign_index):
+    # Movable/fixed/dual starts, expressed by the independent element sequence.
+    start = (0, 9, 6, 3)[sign_index % 4]
+    boundaries = [Fraction(10 * index, 3) for index in range(1, 9)]
+    degrees = [0.0, nextafter(0.0, 30.0), nextafter(30.0, 0.0)]
+    degrees += [float(Fraction(10 * index + 5, 3)) for index in range(9)]
+    for boundary in boundaries:
+        edge = float(boundary)
+        degrees.extend((nextafter(edge, 0.0), edge, nextafter(edge, 30.0)))
+    for degree in degrees:
+        exact = Fraction(degree)
+        part = sum(exact >= boundary for boundary in boundaries)
+        expected_sign = ZODIAC_SIGNS[(start + part) % 12]
+        expected_remainder = float(exact - Fraction(10 * part, 3))
+        _, actual_sign, remainder = navamsa_from_long(ZODIAC_SIGNS[sign_index], degree)
+        assert actual_sign == expected_sign
+        assert remainder == expected_remainder
+        assert (
+            compute_divisional_position_for_type(ZODIAC_SIGNS[sign_index], degree, "D9")
+            == expected_sign
+        )
+
+
+@pytest.mark.parametrize(
+    "degree,expected",
+    [
+        (23.333333333333332, "Libra"),
+        (nextafter(23.333333333333332, 30.0), "Scorpio"),
+        (10, "Cancer"),
+        (20, "Libra"),
+    ],
+)
+def test_d9_boundary_chart_assembly(degree, expected):
+    from copy import deepcopy
+
+    d1 = SimpleNamespace(
+        houses=[SimpleNamespace(sign="Aries", sign_degrees=degree)],
+        planets=[
+            SimpleNamespace(
+                celestial_body="Sun", sign="Aries", sign_degrees=degree, house=1
+            )
+        ],
+    )
+    original = deepcopy(d1)
+    chart = compute_divisional_chart(d1, "D9")
+    assert chart.ascendant.sign == expected
+    assert chart.houses[0].sign == expected
+    assert chart.houses[0].occupants[0].sign == expected
+    assert d1 == original
 
 
 @pytest.mark.parametrize("sign_index", range(12))

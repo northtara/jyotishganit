@@ -42,12 +42,12 @@ def navamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     Returns (total_seconds_from_Aries0, navamsa_sign_name, degrees_within_navamsa).
     """
     total_seconds = longitude_to_seconds(sign, degrees)
-    # navamsa amsa size = 3°20' = 3.333... degrees in seconds
-    amsa = (3 * 3600) + (20 * 60)
-    # degrees within the sign, in seconds
-    longi_sec_in_sign = int((degrees % 30) * 3600)
+    # Divide the supplied value exactly: floating arcseconds can round a value
+    # below a 3°20' boundary onto it. Keep the remainder in the same interval.
+    numerator, denominator = (degrees % 30).as_integer_ratio()
+    part, remainder = divmod(numerator * 9, denominator * 30)
     # which navamsa compartment within the sign (1..9)
-    compartment = int(longi_sec_in_sign / amsa) + 1  # 1..9
+    compartment = part + 1
     sign_num = signnum(sign)
 
     # Classical rule: start base depends on rasi nature (movable/fixed/dual)
@@ -65,9 +65,8 @@ def navamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     nav_sign_num = compute_nthsign(base_start, compartment)
     nav_sign = ZODIAC_SIGNS[nav_sign_num - 1]
 
-    # degrees inside the navamsa amsa (0 .. 3°20')
-    remaining_seconds = longi_sec_in_sign % amsa
-    nav_deg = remaining_seconds / 3600.0
+    # Degrees inside the natal amsa, not scaled to a 30° divisional sign.
+    nav_deg = remainder / (denominator * 9)
 
     return total_seconds, nav_sign, nav_deg
 
