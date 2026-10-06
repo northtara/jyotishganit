@@ -398,7 +398,11 @@ def compute_divisional_position_for_type(
 
 
 def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
-    """Compute a divisional chart from D1 chart."""
+    """Compute twelve houses ordered from the divisional ascendant.
+
+    Sun/Moon Hora (D2) uses the same house structure; only Cancer and Leo
+    can contain planets under its sign mapping.
+    """
     # Get D1 ascendant sign for house placement calculation
     asc_sign_d1 = d1_chart.houses[0].sign
     asc_sign_d1_num = signnum(asc_sign_d1)
@@ -420,33 +424,19 @@ def compute_divisional_chart(d1_chart, chart_type: str) -> DivisionalChart:
     div_houses = []
     asc_sign_num = signnum(div_asc.sign)
 
-    # D2 retains only Cancer and Leo, numbered from its divisional ascendant.
-    if chart_type == "D2":
-        for house_sign in ("Cancer", "Leo"):
-            house_sign_num = signnum(house_sign)
-            div_houses.append(
-                DivisionalHouse(
-                    number=((house_sign_num - asc_sign_num) % 12) + 1,
-                    sign=house_sign,
-                    lord=SIGN_LORDS[house_sign],
-                    d1_house_placement=((house_sign_num - asc_sign_d1_num) % 12) + 1,
-                )
-            )
-    else:
-        # Standard 12-house chart for other divisional charts
-        for house_num in range(1, 13):
-            house_sign_num = compute_nthsign(asc_sign_num, house_num)
-            house_sign = ZODIAC_SIGNS[house_sign_num - 1]
-            house_lord = SIGN_LORDS[house_sign]
-            d1_house_placement = ((house_sign_num - asc_sign_d1_num) % 12) + 1
+    for house_num in range(1, 13):
+        house_sign_num = compute_nthsign(asc_sign_num, house_num)
+        house_sign = ZODIAC_SIGNS[house_sign_num - 1]
+        house_lord = SIGN_LORDS[house_sign]
+        d1_house_placement = ((house_sign_num - asc_sign_d1_num) % 12) + 1
 
-            div_house = DivisionalHouse(
-                number=house_num,
-                sign=house_sign,
-                lord=house_lord,
-                d1_house_placement=d1_house_placement,
-            )
-            div_houses.append(div_house)
+        div_house = DivisionalHouse(
+            number=house_num,
+            sign=house_sign,
+            lord=house_lord,
+            d1_house_placement=d1_house_placement,
+        )
+        div_houses.append(div_house)
 
     # Place planets in their houses
     for planet in d1_chart.planets:

@@ -130,6 +130,10 @@ Mercury in Capricorn
 Sun in Pisces
 ```
 
+All divisional charts return twelve houses ordered 1–12 from their own ascendant.
+In D2 (Sun/Moon Hora), only Cancer and Leo contain planets; the other ten houses
+are empty. This replaces D2's former two-house list without changing Hora signs.
+
 ### Shadbala (Six-Fold Strength System)
 Comprehensive planetary strength analysis with traditional calculations:
 

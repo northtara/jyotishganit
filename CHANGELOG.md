@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- D2 now returns twelve houses ordered from its ascendant, like other divisional charts (issue #18). Previously it returned only Cancer and Leo in that order. Planetary signs, lords and D1 placement metadata are unchanged; the other ten houses are empty. Consumers relying on the two-entry list must accommodate the complete house list.
+
 ## [0.1.6] - 2026-10-06
 
 ### Fixed
