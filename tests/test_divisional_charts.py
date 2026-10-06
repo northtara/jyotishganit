@@ -10,7 +10,7 @@ from jyotishganit.components.divisional_charts import (
     compute_divisional_position_for_type,
     trimsamsa_from_long,
 )
-from jyotishganit.core.constants import ZODIAC_SIGNS
+from jyotishganit.core.constants import DIVISIONAL_CHARTS, SIGN_LORDS, ZODIAC_SIGNS
 
 # PVR, Vedic Astrology: An Integrated Approach, section 6.2.17, pp. 58-59.
 ODD = [
@@ -112,34 +112,72 @@ def test_d2_house_numbers_follow_divisional_ascendant(sign_index, degree):
     before = deepcopy(d1)
     chart = compute_divisional_chart(d1, "D2")
     assert chart.ascendant.sign == expected_ascendant
-    assert [(h.number, h.sign) for h in chart.houses] == [
-        (expected_numbers["Cancer"], "Cancer"),
-        (expected_numbers["Leo"], "Leo"),
-    ]
+    asc_index = ZODIAC_SIGNS.index(expected_ascendant)
+    expected_signs = ZODIAC_SIGNS[asc_index:] + ZODIAC_SIGNS[:asc_index]
+    expected_houses = list(enumerate(expected_signs, start=1))
+    assert [(h.number, h.sign) for h in chart.houses] == expected_houses
+    assert {
+        h.sign: h.number for h in chart.houses if h.sign in expected_numbers
+    } == expected_numbers
     assert next(h.sign for h in chart.houses if h.number == 1) == chart.ascendant.sign
     assert [(h.sign, h.lord) for h in chart.houses] == [
-        ("Cancer", "Moon"),
-        ("Leo", "Sun"),
+        (sign, SIGN_LORDS[sign]) for sign in expected_signs
     ]
     assert [h.d1_house_placement for h in chart.houses] == [
-        (3 - sign_index) % 12 + 1,
-        (4 - sign_index) % 12 + 1,
+        (ZODIAC_SIGNS.index(sign) - sign_index) % 12 + 1 for sign in expected_signs
     ]
     assert chart.ascendant.d1_house_placement == (
         (ZODIAC_SIGNS.index(expected_ascendant) - sign_index) % 12 + 1
     )
-    assert [
-        (p.celestial_body, p.sign, p.d1_house_placement)
+    assert {
+        h.sign: [(p.celestial_body, p.sign, p.d1_house_placement) for p in h.occupants]
         for h in chart.houses
-        for p in h.occupants
-    ] == [
-        ("Moon", "Cancer", 7),
-        ("Mars", "Cancer", 9),
-        ("Sun", "Leo", 3),
-        ("Venus", "Leo", 11),
-    ]
-    assert [(h["number"], h["sign"]) for h in chart.to_dict()["houses"]] == [
-        (expected_numbers["Cancer"], "Cancer"),
-        (expected_numbers["Leo"], "Leo"),
-    ]
+        if h.occupants
+    } == {
+        "Cancer": [("Moon", "Cancer", 7), ("Mars", "Cancer", 9)],
+        "Leo": [("Sun", "Leo", 3), ("Venus", "Leo", 11)],
+    }
+    assert all(not h.occupants for h in chart.houses if h.sign not in expected_numbers)
+    assert [
+        (h["number"], h["sign"]) for h in chart.to_dict()["houses"]
+    ] == expected_houses
     assert d1 == before
+
+
+@pytest.mark.parametrize(
+    "chart_type", [code for code in DIVISIONAL_CHARTS if code != "D1"]
+)
+def test_divisional_charts_share_complete_ordered_house_structure(chart_type):
+    bodies = (
+        "Sun",
+        "Moon",
+        "Mars",
+        "Mercury",
+        "Jupiter",
+        "Venus",
+        "Saturn",
+        "Rahu",
+        "Ketu",
+    )
+    d1 = SimpleNamespace(
+        houses=[SimpleNamespace(sign="Aries", sign_degrees=20.0)],
+        planets=[
+            SimpleNamespace(
+                celestial_body=body, sign="Aries", sign_degrees=2.0 + index * 3, house=1
+            )
+            for index, body in enumerate(bodies)
+        ],
+    )
+    chart = compute_divisional_chart(d1, chart_type)
+    assert [house.number for house in chart.houses] == list(range(1, 13))
+    assert chart.houses[0].sign == chart.ascendant.sign
+    assert {house.sign for house in chart.houses} == set(ZODIAC_SIGNS)
+    occupants = [planet for house in chart.houses for planet in house.occupants]
+    assert sorted(planet.celestial_body for planet in occupants) == sorted(bodies)
+    assert all(
+        planet.sign == house.sign
+        for house in chart.houses
+        for planet in house.occupants
+    )
+    # Empty houses must not share mutable occupant lists.
+    assert len({id(house.occupants) for house in chart.houses}) == 12
