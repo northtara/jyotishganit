@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-10-09
+
 ### Fixed
 - All equal-division charts (D2–D60) now select the subdivision and its natal-degree remainder together using exact division of the supplied numeric value (issue #20). Values within a float step of D9/D27/D45 boundaries now resolve on their exact side: `70/3` evaluates just below 23⅓°, so Aries maps to Libra in D9. Remainders retain fractional arcseconds; integer total-seconds metadata and D30's unequal, upper-inclusive boundaries are unchanged.
 
