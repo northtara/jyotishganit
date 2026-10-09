@@ -3,6 +3,8 @@ Divisional charts calculations for jyotishganit.
 
 Implements all standard Vedic divisional charts (D2 to D60) based on jyotishyamitra logic.
 Each chart calculated from D1 (rasi) positions using sign-based division rules.
+Equal divisions share exact-input, lower-inclusive subdivision arithmetic and
+return remainders in natal degrees. D30 retains its unequal, upper-inclusive rules.
 """
 
 from jyotishganit.core.constants import SIGN_LORDS, ZODIAC_SIGNS
@@ -37,16 +39,26 @@ def seconds_to_longitude(total_seconds: int) -> tuple[str, float]:
     return longitude_to_zodiac(degrees)
 
 
+def _equal_division(degrees: float, factor: int) -> tuple[int, float]:
+    """Return the zero-based part and remainder in natal degrees.
+
+    Internal callers supply a positive division factor. Treat the supplied value
+    as exact: parts are lower-inclusive, so a float below a rational boundary
+    stays below it, even if it is the nearest float to that boundary. Divide
+    before any floating multiplication or arcsecond conversion can round it.
+    Only the final remainder is rounded to float; it is not scaled to 30 degrees.
+    """
+    numerator, denominator = degrees.as_integer_ratio()
+    part, remainder = divmod(numerator * factor, denominator * 30)
+    return part, remainder / (denominator * factor)
+
+
 def navamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Navamsa (D9) position from D1 longitude using standard movable/fixed/dual start rules.
     Returns (total_seconds_from_Aries0, navamsa_sign_name, degrees_within_navamsa).
     """
     total_seconds = longitude_to_seconds(sign, degrees)
-    # Divide the supplied value exactly: floating arcseconds can round a value
-    # below a 3°20' boundary onto it. Keep the remainder in the same interval.
-    numerator, denominator = (degrees % 30).as_integer_ratio()
-    part, remainder = divmod(numerator * 9, denominator * 30)
-    # which navamsa compartment within the sign (1..9)
+    part, nav_deg = _equal_division(degrees % 30, 9)
     compartment = part + 1
     sign_num = signnum(sign)
 
@@ -65,9 +77,6 @@ def navamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     nav_sign_num = compute_nthsign(base_start, compartment)
     nav_sign = ZODIAC_SIGNS[nav_sign_num - 1]
 
-    # Degrees inside the natal amsa, not scaled to a 30° divisional sign.
-    nav_deg = remainder / (denominator * 9)
-
     return total_seconds, nav_sign, nav_deg
 
 
@@ -80,7 +89,7 @@ def hora_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """
     total_seconds = longitude_to_seconds(sign, degrees)
     sign_num = signnum(sign)
-    longi_deg = degrees % 30.0
+    part, deg_in_half = _equal_division(degrees % 30.0, 2)
 
     # odd signs: Aries(1), Gemini(3), Leo(5), Libra(7), Sag(9), Aquarius(11)
     odd_signs = {1, 3, 5, 7, 9, 11}
@@ -88,23 +97,16 @@ def hora_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
 
     # decide Sun/Mon hora
     # Sun hora maps to Leo, Moon hora maps to Cancer
-    if (is_odd and longi_deg < 15.0) or (not is_odd and longi_deg >= 15.0):
-        hor_sign = "Leo"
-    else:
-        hor_sign = "Cancer"
+    hor_sign = "Leo" if is_odd == (part == 0) else "Cancer"
 
-    # degree within the 15° half (0..15)
-    deg_in_half = longi_deg if longi_deg < 15.0 else (longi_deg - 15.0)
     return total_seconds, hor_sign, deg_in_half
 
 
 def drekkana_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Drekkana (D3) position."""
     sign_num = signnum(sign)
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600  # degrees within sign
-    amsa = 10 * 3600  # 10° amsa
-    compartment = 1 + int(longi_sec / amsa)
+    part, drekk_deg = _equal_division(degrees, 3)
+    compartment = part + 1
     if compartment == 1:
         drekk_sign_num = compute_nthsign(sign_num, 1)
     elif compartment == 2:
@@ -112,8 +114,6 @@ def drekkana_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     else:
         drekk_sign_num = compute_nthsign(sign_num, 9)
     drekk_sign = ZODIAC_SIGNS[drekk_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    drekk_deg = remaining_seconds / 3600
     # Get total_seconds for consistency with return format
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, drekk_sign, drekk_deg
@@ -121,10 +121,8 @@ def drekkana_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
 
 def chaturtamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Chaturthamsa (D4) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 4  # 7.5° amsa
-    compartment = 1 + int(longi_sec / amsa)
+    part, chat_deg = _equal_division(degrees, 4)
+    compartment = part + 1
     sign_num = signnum(sign)
     if compartment == 1:
         chat_sign_num = compute_nthsign(sign_num, 1)
@@ -135,69 +133,52 @@ def chaturtamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     else:
         chat_sign_num = compute_nthsign(sign_num, 10)
     chat_sign = ZODIAC_SIGNS[chat_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    chat_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, chat_sign, chat_deg
 
 
 def saptamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Saptamsa (D7) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 7  # ~4.285° amsa
-    compartment = 1 + int(longi_sec / amsa)
+    part, sapt_deg = _equal_division(degrees, 7)
+    compartment = part + 1
     sign_num = signnum(sign)
     if sign_num % 2 == 1:  # odd Lagna
         sapt_sign_num = compute_nthsign(sign_num, compartment)
     else:  # even Lagna
         sapt_sign_num = compute_nthsign(sign_num, compartment + 6)
     sapt_sign = ZODIAC_SIGNS[sapt_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    sapt_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, sapt_sign, sapt_deg
 
 
 def dasamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Dasamsa (D10) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 10  # 3° amsa
-    part = int(longi_sec / amsa)
+    part, das_deg = _equal_division(degrees, 10)
     sign_num = signnum(sign)
     if sign_num % 2 == 1:  # odd
         das_sign_num = ((sign_num - 1 + part) % 12) + 1
     else:  # even
         das_sign_num = ((sign_num - 1 + 8 + part) % 12) + 1
     das_sign = ZODIAC_SIGNS[das_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    das_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, das_sign, das_deg
 
 
 def dwadasamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Dwadasamsa (D12) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 12  # 2.5° amsa
-    compartment = 1 + int(longi_sec / amsa) % 12
+    part, dwad_deg = _equal_division(degrees, 12)
+    compartment = 1 + part % 12
     sign_num = signnum(sign)
     dwad_sign_num = compute_nthsign(sign_num, compartment)
     dwad_sign = ZODIAC_SIGNS[dwad_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    dwad_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, dwad_sign, dwad_deg
 
 
 def shodasamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Shodasamsa (D16) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 16  # 1.875° amsa
-    compartment = 1 + int(longi_sec / amsa)
+    part, shod_deg = _equal_division(degrees, 16)
+    compartment = part + 1
     sign_num = signnum(sign)
     if sign_num in [1, 4, 7, 10]:  # Movable
         shod_sign_num = compute_nthsign(1, compartment)
@@ -206,18 +187,14 @@ def shodasamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     else:  # Dual
         shod_sign_num = compute_nthsign(9, compartment)
     shod_sign = ZODIAC_SIGNS[shod_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    shod_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, shod_sign, shod_deg
 
 
 def vimsamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Vimsamsa (D20) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 20  # 1.5° amsa
-    compartment = 1 + int(longi_sec / amsa)
+    part, vim_deg = _equal_division(degrees, 20)
+    compartment = part + 1
     sign_num = signnum(sign)
     if sign_num in [1, 4, 7, 10]:  # Movable
         vim_sign_num = compute_nthsign(1, compartment)
@@ -226,36 +203,28 @@ def vimsamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     else:  # Dual
         vim_sign_num = compute_nthsign(5, compartment)
     vim_sign = ZODIAC_SIGNS[vim_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    vim_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, vim_sign, vim_deg
 
 
 def chaturvimsamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Chaturvimsamsa (D24) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 24  # 1.25° amsa
-    compartment = 1 + int(longi_sec / amsa)
+    part, chatur_deg = _equal_division(degrees, 24)
+    compartment = part + 1
     sign_num = signnum(sign)
     if sign_num % 2 == 0:  # Even sign
         chatur_sign_num = compute_nthsign(4, compartment)
     else:  # Odd sign
         chatur_sign_num = compute_nthsign(5, compartment)
     chatur_sign = ZODIAC_SIGNS[chatur_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    chatur_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, chatur_sign, chatur_deg
 
 
 def sapta_vimsamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Sapta-vimsamsa (D27) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 27  # ~1.11° amsa
-    compartment = 1 + int(longi_sec / amsa)
+    part, sapt_deg = _equal_division(degrees, 27)
+    compartment = part + 1
     sign_num = signnum(sign)
     if sign_num in [1, 5, 9]:  # Fiery
         sapt_sign_num = compute_nthsign(1, compartment)
@@ -266,8 +235,6 @@ def sapta_vimsamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float
     else:  # Watery
         sapt_sign_num = compute_nthsign(10, compartment)
     sapt_sign = ZODIAC_SIGNS[sapt_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    sapt_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, sapt_sign, sapt_deg
 
@@ -306,28 +273,22 @@ def trimsamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
 
 def khavedamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Khavedamsa (D40) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 40  # 0.75° amsa
-    compartment = 1 + int(longi_sec / amsa)
+    part, khav_deg = _equal_division(degrees, 40)
+    compartment = part + 1
     sign_num = signnum(sign)
     if sign_num % 2 == 0:  # Even sign
         khav_sign_num = compute_nthsign(7, compartment)
     else:  # Odd sign
         khav_sign_num = compute_nthsign(1, compartment)
     khav_sign = ZODIAC_SIGNS[khav_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    khav_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, khav_sign, khav_deg
 
 
 def akshavedamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Akshavedamsa (D45) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 45  # 0.666° amsa
-    compartment = 1 + int(longi_sec / amsa)
+    part, aksh_deg = _equal_division(degrees, 45)
+    compartment = part + 1
     sign_num = signnum(sign)
     if sign_num in [1, 4, 7, 10]:  # Movable
         aksh_sign_num = compute_nthsign(1, compartment)
@@ -336,23 +297,17 @@ def akshavedamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     else:  # Dual
         aksh_sign_num = compute_nthsign(9, compartment)
     aksh_sign = ZODIAC_SIGNS[aksh_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    aksh_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, aksh_sign, aksh_deg
 
 
 def shashtiamsa_from_long(sign: str, degrees: float) -> tuple[int, str, float]:
     """Compute Shashtiamsa (D60) position."""
-    pos_deg = degrees
-    longi_sec = pos_deg * 3600
-    amsa = 30 * 3600 / 60  # 0.5° amsa
-    compartment = 1 + int(longi_sec / amsa) % 12
+    part, shas_deg = _equal_division(degrees, 60)
+    compartment = 1 + part % 12
     sign_num = signnum(sign)
     shas_sign_num = compute_nthsign(sign_num, compartment)
     shas_sign = ZODIAC_SIGNS[shas_sign_num - 1]
-    remaining_seconds = longi_sec % amsa
-    shas_deg = remaining_seconds / 3600
     total_seconds = longitude_to_seconds(sign, degrees)
     return total_seconds, shas_sign, shas_deg
 
