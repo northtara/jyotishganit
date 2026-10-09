@@ -11,13 +11,9 @@ Provides traditional five-limb (Panchanga) calculations including:
 
 import math
 from datetime import datetime, timedelta
-from functools import cache
-
-from skyfield.api import Star, load
-from skyfield.data import hipparcos
 
 # Use global Skyfield objects from core.astronomical
-from jyotishganit.core.astronomical import get_ephemeris, get_timescale
+from jyotishganit.core.astronomical import _get_spica, get_ephemeris, get_timescale
 from jyotishganit.core.constants import (
     FIXED_KARANAS,
     MOVABLE_KARANAS,
@@ -35,13 +31,9 @@ def _get_sun():
     return get_ephemeris()["sun"]
 
 
-@cache
 def get_spica_star_object():
-    """Loads the Hipparcos star catalog and returns the Skyfield Star object for Spica."""
-    with load.open(hipparcos.URL) as f:
-        df = hipparcos.load_dataframe(f)
-    spica_df = df.loc[65474]
-    return Star.from_dataframe(spica_df)
+    """Return the Skyfield Star object for Spica from the Hipparcos catalogue."""
+    return _get_spica()
 
 
 def utc_to_jd(birth_datetime: datetime, timezone_offset: float) -> float:

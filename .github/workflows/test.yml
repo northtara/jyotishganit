@@ -39,12 +39,9 @@ jobs:
     - name: Cache astronomical data
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        # DE421 ephemeris and timescale files, and the Hipparcos catalogue,
-        # which Skyfield's default loader saves to the working directory.
-        path: |
-          ~/.local/share/jyotishganit
-          hip_main.dat
-        key: astronomical-data-v1
+        # DE421 ephemeris and the Hipparcos catalogue, in the library's data directory.
+        path: ~/.local/share/jyotishganit
+        key: astronomical-data-v2
 
     - name: Test with pytest
       run: uv run --locked pytest tests/ --cov=jyotishganit --cov-report=xml
