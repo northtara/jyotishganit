@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from functools import cache
 
 from skyfield import almanac
-from skyfield.api import Loader, Star, load, wgs84
+from skyfield.api import Loader, Star, wgs84
 from skyfield.data import hipparcos
 from skyfield.framelib import ecliptic_frame
 from skyfield.nutationlib import iau2000a_radians, mean_obliquity
@@ -101,8 +101,8 @@ def get_ephemeris():
 
 @cache
 def _get_spica() -> Star:
-    """Get cached Spica star object - matches original implementation."""
-    with load.open(hipparcos.URL) as f:
+    """Get cached Spica star object from the Hipparcos catalogue in DATA_DIR."""
+    with loader.open(hipparcos.URL) as f:
         df = hipparcos.load_dataframe(f)
     # HIP 65474 is the Hipparcos catalog number for Spica (Alpha Virginis)
     spica_df = df.loc[65474]

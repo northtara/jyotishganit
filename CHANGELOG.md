@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The Hipparcos star catalogue (`hip_main.dat`, ~50 MB), used to anchor the ayanamsa on Spica, is now downloaded to the library's data directory alongside `de421.bsp`. Previously Skyfield's default loader saved it in the current working directory, so each project that used jyotishganit got its own copy. After upgrading, the catalogue is downloaded once more into the data directory, and old copies in project directories can be deleted.
+
 ## [0.1.7] - 2026-10-09
 
 ### Fixed
